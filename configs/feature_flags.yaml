@@ -1,0 +1,28 @@
+features:
+  # Authentication features
+  mfa_required_for_admin: true
+  mfa_enabled_for_users: true
+  passwordless_login: false
+
+  # OAuth providers
+  oauth_google: true
+  oauth_github: true
+
+  # Registration
+  registration_open: true
+  email_verification_required: true
+
+  # Security
+  account_lock_enabled: true
+  rate_limiting_enabled: true
+  hibp_check_enabled: true
+  replay_detection_enabled: true
+
+  # Delivery
+  outbox_async_email: true
+
+  # OPA (policy engine)
+  opa_policy_engine: false
+
+  # Webhooks
+  webhooks_enabled: true

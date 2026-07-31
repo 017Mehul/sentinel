@@ -1,0 +1,50 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+
+# Go build artifacts
+*.test
+*.out
+coverage.out
+coverage.html
+
+# Wire generated files — uncomment if you want to regenerate via `make wire`
+# cmd/server/wire_gen.go
+# cmd/notification/wire_gen.go
+
+# sqlc generated (regenerate with: make sqlc)
+internal/*/db/
+
+# Proto generated (regenerate with: make proto)
+api/gen/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# JWT keys (never commit private keys)
+certs/private.pem
+certs/*.pem
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Docker override (local customizations)
+docker-compose.override.yml
+
+# Test artifacts
+tests/load/results/

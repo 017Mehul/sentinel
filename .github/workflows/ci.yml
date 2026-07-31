@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Tidy and verify dependencies
+        run: |
+          go mod tidy
+          go mod verify
+
+      - name: Build all binaries
+        run: |
+          go build -trimpath -ldflags="-s -w" ./cmd/server
+          go build -trimpath -ldflags="-s -w" ./cmd/worker
+          go build -trimpath -ldflags="-s -w" ./cmd/migrate
+          go build -trimpath -ldflags="-s -w" ./cmd/notification
+
+      - name: Run vet
+        run: go vet ./...
+
+      - name: Run unit tests
+        run: go test -race -count=1 -timeout=120s ./...
+
+      - name: Run unit tests with coverage
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.out
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run integration tests (Testcontainers)
+        run: go test -race -count=1 -timeout=300s -tags=integration ./tests/integration/...
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: "false"

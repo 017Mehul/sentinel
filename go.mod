@@ -1,0 +1,81 @@
+module github.com/MehulChamoli/auth-service
+
+go 1.24
+
+require (
+	// Web framework
+	github.com/gin-gonic/gin v1.10.0
+
+	// JWT (RS256)
+	github.com/golang-jwt/jwt/v5 v5.2.1
+
+	// Database
+	github.com/jackc/pgx/v5 v5.7.1
+	github.com/golang-migrate/migrate/v4 v4.18.1
+
+	// Redis
+	github.com/redis/go-redis/v9 v9.7.0
+
+	// Configuration
+	github.com/spf13/viper v1.19.0
+
+	// Validation
+	github.com/go-playground/validator/v10 v10.23.0
+
+	// Logging
+	github.com/rs/zerolog v1.33.0
+
+	// UUID
+	github.com/google/uuid v1.6.0
+
+	// Password hashing
+	golang.org/x/crypto v0.31.0
+
+	// TOTP / MFA
+	github.com/pquerna/otp v1.4.0
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
+
+	// NATS
+	github.com/nats-io/nats.go v1.38.0
+
+	// gRPC
+	google.golang.org/grpc v1.69.2
+	google.golang.org/protobuf v1.36.1
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.2.0
+
+	// OpenTelemetry
+	go.opentelemetry.io/otel v1.33.0
+	go.opentelemetry.io/otel/sdk v1.33.0
+	go.opentelemetry.io/otel/trace v1.33.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.33.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.33.0
+	go.opentelemetry.io/otel/semconv/v1.24.0 v1.24.0
+	go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.58.0
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.58.0
+
+	// Prometheus
+	github.com/prometheus/client_golang v1.20.5
+
+	// Email
+	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
+
+	// OAuth2
+	golang.org/x/oauth2 v0.25.0
+
+	// Swagger
+	github.com/swaggo/swag v1.16.4
+	github.com/swaggo/gin-swagger v1.6.0
+	github.com/swaggo/files v1.0.1
+
+	// DI
+	github.com/google/wire v0.6.0
+
+	// Testing
+	github.com/testcontainers/testcontainers-go v0.35.0
+	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/objx v0.5.2
+
+	// Misc
+	golang.org/x/net v0.33.0
+	github.com/boombuler/barcode v1.0.2
+)

@@ -1,0 +1,9 @@
+# This directory holds RS256 key pairs used for JWT signing.
+# Keys are NOT committed to version control.
+#
+# Generate them with:
+#   make gen-keys
+#
+# Or manually:
+#   openssl genrsa -out certs/private.pem 4096
+#   openssl rsa -in certs/private.pem -pubout -out certs/public.pem

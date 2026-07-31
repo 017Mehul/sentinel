@@ -33,8 +33,6 @@ jobs:
         run: |
           go build -trimpath -ldflags="-s -w" ./cmd/server
           go build -trimpath -ldflags="-s -w" ./cmd/worker
-          go build -trimpath -ldflags="-s -w" ./cmd/migrate
-          go build -trimpath -ldflags="-s -w" ./cmd/notification
 
       - name: Run vet
         run: go vet ./...

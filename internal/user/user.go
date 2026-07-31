@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/MehulChamoli/auth-service/internal/shared/contextkeys"
 	"github.com/MehulChamoli/auth-service/internal/shared/dbtx"

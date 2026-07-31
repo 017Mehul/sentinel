@@ -79,7 +79,7 @@ func TestAES_Decrypt_RejectsInvalidBase64(t *testing.T) {
 
 func TestAES_Decrypt_RejectsTooShortCiphertext(t *testing.T) {
 	// Encode a slice that's shorter than the GCM nonce size (12 bytes)
-	import64 := "aGVsbG8=" // base64("hello") — only 5 bytes
-	_, err := AESDecrypt(aesKey32, import64)
+	shortCT := "aGVsbG8=" // base64("hello") — only 5 bytes
+	_, err := AESDecrypt(aesKey32, shortCT)
 	assert.Error(t, err)
 }

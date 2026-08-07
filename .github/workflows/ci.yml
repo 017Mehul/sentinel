@@ -22,7 +22,7 @@ jobs:
           cache: false
 
       - name: Cache Go modules
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/go-build
@@ -71,7 +71,7 @@ jobs:
           cache: false
 
       - name: Cache Go modules
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/go-build
@@ -105,7 +105,7 @@ jobs:
           cache: false
 
       - name: Cache Go modules
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/go-build

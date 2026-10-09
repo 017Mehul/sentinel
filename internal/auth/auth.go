@@ -267,6 +267,18 @@ func (r *Repository) RevokeSession(ctx context.Context, tx dbTX, sessionID strin
 	return nil
 }
 
+func (r *Repository) RevokeSessionAndRefreshToken(ctx context.Context, sessionID string) error {
+	tx, err := r.beginTx(ctx)
+	if err != nil { return fmt.Errorf("beginning session revoke transaction: %w", err) }
+	defer tx.Rollback(ctx) //nolint:errcheck
+	if _, err := tx.Exec(ctx, `UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = (SELECT refresh_token_id FROM sessions WHERE id = $1) AND revoked_at IS NULL`, sessionID); err != nil {
+		return fmt.Errorf("revoking session refresh token: %w", err)
+	}
+	if err := r.RevokeSession(ctx, tx, sessionID); err != nil { return err }
+	if err := commitTx(ctx, tx); err != nil { return fmt.Errorf("committing session revoke: %w", err) }
+	return nil
+}
+
 func (r *Repository) TouchSession(ctx context.Context, tx dbTX, sessionID string) error {
 	if tx == nil {
 		tx = r.db
@@ -577,7 +589,7 @@ func (h *Handler) RevokeCurrentSession(c *gin.Context) {
 	if !ok { response.Error(c, apperrors.ErrTokenInvalid()); return }
 	sid, ok := sessionID.(string)
 	if !ok || sid == "" { response.Error(c, apperrors.ErrTokenInvalid()); return }
-	if err := h.svc.repo.RevokeSession(c.Request.Context(), nil, sid); err != nil { response.Error(c, err); return }
+	if err := h.svc.repo.RevokeSessionAndRefreshToken(c.Request.Context(), sid); err != nil { response.Error(c, err); return }
 	if h.svc.cache != nil { _ = h.svc.cache.Delete(c.Request.Context(), "session:"+sid) }
 	response.NoContent(c)
 }

@@ -686,3 +686,7 @@ func (r *Repository) HasPermission(ctx context.Context, userID, permission strin
 	if err != nil { return false, fmt.Errorf("checking permission: %w", err) }
 	return allowed, nil
 }
+
+func (s *Service) CheckPermission(ctx context.Context, userID, permission string) (bool, error) {
+	return s.repo.HasPermission(ctx, userID, permission)
+}

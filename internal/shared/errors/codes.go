@@ -7,7 +7,8 @@ const (
 	CodeInvalidCredentials   = "AUTH_001" // #nosec G101 -- these are symbolic application error codes, not credentials
 	CodeAccountLocked        = "AUTH_002" // #nosec G101 -- these are symbolic application error codes, not credentials
 	CodeTokenInvalid         = "AUTH_003" // #nosec G101 -- these are symbolic application error codes, not credentials
-	CodeTokenReused          = "AUTH_004" // refresh token rotation attack // #nosec G101 -- these are symbolic application error codes, not credentials
+	CodeTokenReused          = "AUTH_004" // #nosec G101 -- symbolic application error code, not a credential
+	// Refresh-token rotation attacks are represented by this symbolic code.
 	CodeTokenExpired         = "AUTH_005" // #nosec G101 -- these are symbolic application error codes, not credentials
 	CodeConcurrentRefresh    = "AUTH_006" // #nosec G101 -- these are symbolic application error codes, not credentials
 	CodeEmailNotVerified     = "AUTH_007" // #nosec G101 -- these are symbolic application error codes, not credentials

@@ -4,13 +4,9 @@
 # ── Variables ──────────────────────────────────────────────────────────────────
 BINARY_AUTH        := bin/auth-service
 BINARY_WORKER      := bin/worker
-BINARY_NOTIFY      := bin/notification-service
-BINARY_MIGRATE     := bin/migrate
 
 CMD_AUTH           := ./cmd/server
 CMD_WORKER         := ./cmd/worker
-CMD_NOTIFY         := ./cmd/notification
-CMD_MIGRATE        := ./cmd/migrate
 
 GO                 := go
 GOFLAGS            := -trimpath
@@ -24,7 +20,7 @@ DB_URL             ?= postgres://postgres:changeme@localhost:5432/authdb?sslmode
 
 all: build
 
-build: build-auth build-worker build-notify build-migrate
+build: build-auth build-worker
 
 build-auth:
 	@echo "▶ Building auth service..."
@@ -33,14 +29,6 @@ build-auth:
 build-worker:
 	@echo "▶ Building worker..."
 	$(GO) build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BINARY_WORKER) $(CMD_WORKER)
-
-build-notify:
-	@echo "▶ Building notification service..."
-	$(GO) build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BINARY_NOTIFY) $(CMD_NOTIFY)
-
-build-migrate:
-	@echo "▶ Building migrate tool..."
-	$(GO) build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BINARY_MIGRATE) $(CMD_MIGRATE)
 
 # ── Run ────────────────────────────────────────────────────────────────────────
 
@@ -55,9 +43,6 @@ run-dev:
 run-worker: build-worker
 	./$(BINARY_WORKER)
 
-run-notify: build-notify
-	./$(BINARY_NOTIFY)
-
 # ── Code Generation ────────────────────────────────────────────────────────────
 
 wire:
@@ -68,7 +53,7 @@ sqlc:
 	@echo "▶ No sqlc queries are currently defined"
 
 proto:
-	@echo "▶ No protobuf definitions are currently checked in"
+	@echo "▶ Protobuf source is in proto/auth/v1/auth.proto; generated stubs are not checked in"
 
 gen-keys:
 	@echo "▶ Generating RS256 key pair..."
@@ -78,7 +63,7 @@ gen-keys:
 	@echo "✔ Keys generated in ./certs/"
 
 swagger:
-	@echo "▶ Swagger docs are not generated in this repository snapshot"
+	@echo "▶ Swagger generation is not configured yet"
 
 # ── Database ───────────────────────────────────────────────────────────────────
 
@@ -110,10 +95,6 @@ test:
 test-unit:
 	@echo "▶ Running unit tests..."
 	$(GO) test -race -count=1 -timeout=60s ./tests/unit/... ./internal/... ./pkg/...
-
-test-integration:
-	@echo "▶ Running integration tests (requires Docker)..."
-	$(GO) test -race -count=1 -timeout=300s -tags integration ./tests/integration/...
 
 test-integration:
 	@echo "▶ Running integration tests (requires Docker)..."
@@ -153,7 +134,7 @@ security:
 
 docker-build:
 	@echo "▶ Building Docker images..."
-	docker build -t auth-service:latest .
+	docker build -t sentinel:latest .
 
 docker-up:
 	@echo "▶ Starting full stack..."
@@ -185,7 +166,7 @@ tidy:
 
 help:
 	@echo ""
-	@echo "Auth Service — Available Make Targets"
+	@echo "Sentinel — Available Make Targets"
 	@echo "═══════════════════════════════════════"
 	@echo "  make build          Build all binaries"
 	@echo "  make run            Build + run auth service"

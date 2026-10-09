@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/MehulChamoli/auth-service/config"
 	"github.com/MehulChamoli/auth-service/internal/mfa"
+	"github.com/MehulChamoli/auth-service/internal/shared/contextkeys"
 	"github.com/MehulChamoli/auth-service/internal/shared/dbtx"
 	apperrors "github.com/MehulChamoli/auth-service/internal/shared/errors"
 	"github.com/MehulChamoli/auth-service/internal/shared/response"

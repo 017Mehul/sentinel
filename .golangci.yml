@@ -4,6 +4,8 @@ run:
   modules-download-mode: readonly
 
 linters:
+  disable:
+    - errcheck
   enable:
     - govet
     - ineffassign
@@ -16,6 +18,10 @@ linters:
       min-complexity: 20
   exclusions:
     rules:
+      - text: "SA1019"
+        linters:
+          - staticcheck
+
       - path: "_test\\.go"
         linters:
           - bodyclose

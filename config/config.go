@@ -278,6 +278,34 @@ func validate(cfg *Config) error {
 		errs = append(errs, "security.bcrypt_cost must be between 10 and 14")
 	}
 
+	if cfg.IsProduction() {
+		if cfg.Database.Password == "" || cfg.Database.Password == "changeme" {
+			errs = append(errs, "database.password must be set to a non-default value in production")
+		}
+		if cfg.OAuth.StateSecret == "" || cfg.OAuth.StateSecret == "changeme" {
+			errs = append(errs, "oauth.state_secret must be set to a non-default value in production")
+		}
+		if cfg.Security.AESEncryptionKey == "" || strings.Contains(cfg.Security.AESEncryptionKey, "changeme") {
+			errs = append(errs, "security.aes_encryption_key must be a non-default value in production")
+		}
+		if cfg.JWT.PrivateKeyPath == "" || cfg.JWT.PublicKeyPath == "" {
+			errs = append(errs, "jwt key paths must be set in production")
+		} else {
+			if _, err := os.Stat(cfg.JWT.PrivateKeyPath); err != nil {
+				errs = append(errs, "jwt.private_key_path must point to an existing key in production")
+			}
+			if _, err := os.Stat(cfg.JWT.PublicKeyPath); err != nil {
+				errs = append(errs, "jwt.public_key_path must point to an existing key in production")
+			}
+		}
+		if !cfg.TLS.Enabled {
+			errs = append(errs, "tls.enabled must be true in production")
+		}
+		if len(cfg.CORS.AllowedOrigins) == 0 {
+			errs = append(errs, "cors.allowed_origins must contain at least one origin in production")
+		}
+	}
+
 	if len(errs) > 0 {
 		return fmt.Errorf("invalid configuration:\n  - %s", strings.Join(errs, "\n  - "))
 	}

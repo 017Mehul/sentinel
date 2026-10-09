@@ -211,6 +211,22 @@ func (r *Router) authMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		// Access tokens are stateless, so consult the Redis session record to
+		// enforce immediate logout/session revocation.
+		if r.redis != nil && claims.SessionID != "" {
+			active, err := r.redis.Exists(c.Request.Context(), "session:"+claims.SessionID)
+			if err != nil {
+				response.Error(c, apperrors.ErrServiceUnavailable("session store unavailable"))
+				c.Abort()
+				return
+			}
+			if !active {
+				response.Error(c, apperrors.ErrTokenInvalid())
+				c.Abort()
+				return
+			}
+		}
+
 		c.Set(string(contextkeys.UserID), claims.Subject)
 		c.Set(string(contextkeys.SessionID), claims.SessionID)
 		c.Set(string(contextkeys.UserRoles), claims.Roles)

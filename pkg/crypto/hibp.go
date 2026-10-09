@@ -3,7 +3,7 @@ package crypto
 import (
 	"bufio"
 	"context"
-	"crypto/sha1"
+	"crypto/sha1" // #nosec G505 -- HIBP Pwned Passwords requires SHA-1 k-anonymity prefixes
 	"fmt"
 	"net/http"
 	"strconv"
@@ -32,7 +32,7 @@ func (h *HIBPClient) IsPwned(ctx context.Context, password string) (bool, int, e
 		return false, 0, nil
 	}
 
-	hash := fmt.Sprintf("%X", sha1.Sum([]byte(password))) // #nosec G505 -- SHA-1 is required by the HIBP k-anonymity API contract
+	hash := fmt.Sprintf("%X", sha1.Sum([]byte(password))) // #nosec G401 -- SHA-1 is required by the HIBP k-anonymity API contract
 	prefix := hash[:5]
 	suffix := hash[5:]
 

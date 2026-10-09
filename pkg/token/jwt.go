@@ -68,7 +68,7 @@ func loadKeyPair(privatePath, publicPath string) (*rsa.PrivateKey, *rsa.PublicKe
 		return privateKey, &privateKey.PublicKey, nil
 	}
 
-	privPEM, privErr := os.ReadFile(privatePath)
+	privPEM, privErr := os.ReadFile(privatePath) // #nosec G304 -- key path is explicit trusted startup configuration
 	if privErr != nil {
 		if !os.IsNotExist(privErr) {
 			return nil, nil, fmt.Errorf("reading private key: %w", privErr)
@@ -90,7 +90,7 @@ func loadKeyPair(privatePath, publicPath string) (*rsa.PrivateKey, *rsa.PublicKe
 		return privateKey, &privateKey.PublicKey, nil
 	}
 
-	pubPEM, pubErr := os.ReadFile(publicPath)
+	pubPEM, pubErr := os.ReadFile(publicPath) // #nosec G304 -- key path is explicit trusted startup configuration
 	if pubErr != nil {
 		if !os.IsNotExist(pubErr) {
 			return nil, nil, fmt.Errorf("reading public key: %w", pubErr)
@@ -214,7 +214,7 @@ func (m *Manager) JWKS() JWKSResponse {
 func (m *Manager) ServeJWKS(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
-	json.NewEncoder(w).Encode(m.JWKS()) //nolint:errcheck
+	if err := json.NewEncoder(w).Encode(m.JWKS()); err != nil { return }
 }
 
 func base64URLEncode(b []byte) string {

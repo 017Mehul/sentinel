@@ -227,6 +227,35 @@ func (r *Repository) CreateSession(ctx context.Context, tx dbTX, sessionID, user
 	return id, nil
 }
 
+type SessionRecord struct {
+	ID           string    `json:"id"`
+	UserID       string    `json:"user_id"`
+	UserAgent    string    `json:"user_agent,omitempty"`
+	IPAddress    string    `json:"ip_address,omitempty"`
+	LastActiveAt time.Time `json:"last_active_at"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+func (r *Repository) ListActiveSessions(ctx context.Context, userID string) ([]SessionRecord, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT id::text, user_id::text, COALESCE(user_agent, ''), COALESCE(host(ip_address), ''), last_active_at, created_at
+		FROM sessions
+		WHERE user_id = $1 AND deleted_at IS NULL
+		ORDER BY last_active_at DESC`, userID)
+	if err != nil { return nil, fmt.Errorf("listing sessions: %w", err) }
+	defer rows.Close()
+	var sessions []SessionRecord
+	for rows.Next() {
+		var s SessionRecord
+		if err := rows.Scan(&s.ID, &s.UserID, &s.UserAgent, &s.IPAddress, &s.LastActiveAt, &s.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scanning session: %w", err)
+		}
+		sessions = append(sessions, s)
+	}
+	if err := rows.Err(); err != nil { return nil, fmt.Errorf("reading sessions: %w", err) }
+	return sessions, nil
+}
+
 func (r *Repository) RevokeSession(ctx context.Context, tx dbTX, sessionID string) error {
 	if tx == nil {
 		tx = r.db
@@ -530,6 +559,27 @@ func (r *Repository) WriteAuditLog(ctx context.Context, tx dbTX, userID, actorID
 // which means Gin itself handles the header correctly and prevents spoofing.
 func clientIP(c *gin.Context) string {
 	return c.ClientIP()
+}
+
+func (h *Handler) ListSessions(c *gin.Context) {
+	userID, ok := c.Get(string(contextkeys.UserID))
+	if !ok { response.Error(c, apperrors.ErrTokenInvalid()); return }
+	uid, ok := userID.(string)
+	if !ok || uid == "" { response.Error(c, apperrors.ErrTokenInvalid()); return }
+	sessions, err := h.svc.repo.ListActiveSessions(c.Request.Context(), uid)
+	if err != nil { response.Error(c, err); return }
+	if sessions == nil { sessions = []SessionRecord{} }
+	response.OK(c, gin.H{"sessions": sessions})
+}
+
+func (h *Handler) RevokeCurrentSession(c *gin.Context) {
+	sessionID, ok := c.Get(string(contextkeys.SessionID))
+	if !ok { response.Error(c, apperrors.ErrTokenInvalid()); return }
+	sid, ok := sessionID.(string)
+	if !ok || sid == "" { response.Error(c, apperrors.ErrTokenInvalid()); return }
+	if err := h.svc.repo.RevokeSession(c.Request.Context(), nil, sid); err != nil { response.Error(c, err); return }
+	if h.svc.cache != nil { _ = h.svc.cache.Delete(c.Request.Context(), "session:"+sid) }
+	response.NoContent(c)
 }
 
 func (h *Handler) Register(c *gin.Context) {

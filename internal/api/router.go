@@ -43,6 +43,7 @@ func NewRouter(cfg *config.Config, tokenMgr *token.Manager, authHandler *auth.Ha
 	engine := gin.New()
 	_ = engine.SetTrustedProxies(nil)
 	engine.Use(gin.Recovery())
+	engine.Use(securityHeadersMiddleware(cfg))
 	engine.Use(requestIDMiddleware())
 	engine.Use(corsMiddleware(cfg))
 	engine.Use(middleware.RateLimitMiddleware(&cfg.RateLimit, redis, false))
@@ -154,6 +155,21 @@ func (r *Router) mountAPIRoutes() {
 		oauth.GET("/github/login", notImplemented)
 		oauth.GET("/google/callback", notImplemented)
 		oauth.GET("/github/callback", notImplemented)
+	}
+}
+
+
+func securityHeadersMiddleware(cfg *config.Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "DENY")
+		c.Header("Referrer-Policy", "no-referrer")
+		c.Header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		c.Header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
+		if cfg.TLS.Enabled {
+			c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
+		c.Next()
 	}
 }
 

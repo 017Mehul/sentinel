@@ -1,6 +1,6 @@
-# auth-service
+# sentinel
 
-[![CI](https://github.com/MehulChamoli/auth-service/actions/workflows/ci.yml/badge.svg)](https://github.com/MehulChamoli/auth-service/actions/workflows/ci.yml)
+[![CI](https://github.com/017Mehul/sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/017Mehul/sentinel/actions/workflows/ci.yml)
 [![Go Version](https://img.shields.io/badge/go-1.24-blue)](https://golang.org/dl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -35,8 +35,7 @@ It covers most of what you'd need in a real app: register/login, email verificat
 - Idempotency middleware using atomic `SET NX` to stop duplicate mutations on retries
 - OpenTelemetry traces exported to Jaeger
 - Prometheus metrics at `/metrics`
-- gRPC server for `ValidateToken`, `GetUser`, `CheckPermission`
-- Transactional outbox for async notification delivery
+- Transactional outbox for async notification delivery (SMTP dispatcher is the production path)
 - HMAC-SHA256 signed webhooks
 
 ---
@@ -61,8 +60,8 @@ It covers most of what you'd need in a real app: register/login, email verificat
 You need Go 1.24+ and Docker.
 
 ```bash
-git clone https://github.com/MehulChamoli/auth-service.git
-cd auth-service
+git clone https://github.com/017Mehul/sentinel.git
+cd sentinel
 
 go mod tidy
 cp .env.example .env
@@ -163,7 +162,6 @@ make security            # gosec + govulncheck
 cmd/
   server/       # HTTP + gRPC entrypoint
   worker/       # outbox worker
-  migrate/      # migration runner
 config/         # Viper config + env expansion
 configs/        # app.yaml, feature_flags.yaml
 internal/

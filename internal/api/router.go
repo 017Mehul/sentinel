@@ -124,6 +124,11 @@ func (r *Router) mountAPIRoutes() {
 	users.GET("/me", r.users.Me)
 	users.PATCH("/me", r.users.UpdateMe)
 
+	sessions := v1.Group("/sessions")
+	sessions.Use(r.authMiddleware())
+	sessions.GET("", r.auth.ListSessions)
+	sessions.DELETE("/current", r.auth.RevokeCurrentSession)
+
 	admin := v1.Group("/admin")
 	admin.Use(r.authMiddleware())
 	admin.GET("/roles", r.admin.ListRoles)

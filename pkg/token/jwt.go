@@ -142,7 +142,7 @@ func (m *Manager) Verify(tokenStr string) (*Claims, error) {
 		func(t *jwt.Token) (any, error) {
 			// Explicitly reject any algorithm other than RS256 to prevent
 			// the "algorithm confusion" attack (e.g., alg:none or HS256 with public key).
-			if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
+			if t.Method != jwt.SigningMethodRS256 {
 				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 			}
 			return m.publicKey, nil

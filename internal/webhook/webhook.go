@@ -8,7 +8,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"net/netip"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -78,7 +82,13 @@ type Dispatcher struct {
 func NewDispatcher(repo *Repository) *Dispatcher {
 	return &Dispatcher{
 		repo:   repo,
-		client: &http.Client{Timeout: 10 * time.Second},
+		client: &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{DialContext: safeDialContext},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return fmt.Errorf("webhook redirects are disabled")
+		},
+	},
 		sem:    make(chan struct{}, maxConcurrentDeliveries),
 	}
 }
@@ -150,6 +160,9 @@ func (d *Dispatcher) deliverWithRetry(ctx context.Context, ep Endpoint, eventTyp
 }
 
 func (d *Dispatcher) sendWebhook(ctx context.Context, ep Endpoint, eventType string, body []byte) error {
+	if err := validateWebhookURL(ep.URL); err != nil {
+		return err
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, ep.URL, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("creating webhook request: %w", err)
@@ -176,4 +189,60 @@ func computeHMAC(payload []byte, secret string) string {
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write(payload)
 	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// validateWebhookURL rejects malformed URLs, unsupported schemes, credentials,
+// and obvious private/loopback destinations before any outbound request is made.
+// DNS is checked again by safeDialContext to protect against DNS rebinding.
+func validateWebhookURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("invalid webhook URL: %w", err)
+	}
+	if u.Scheme != "https" && u.Scheme != "http" {
+		return fmt.Errorf("webhook URL must use http or https")
+	}
+	if u.Hostname() == "" || u.User != nil {
+		return fmt.Errorf("webhook URL must contain a host and no credentials")
+	}
+	if strings.TrimSpace(raw) != raw {
+		return fmt.Errorf("webhook URL must not contain surrounding whitespace")
+	}
+	if ip, err := netip.ParseAddr(u.Hostname()); err == nil && isBlockedWebhookIP(ip) {
+		return fmt.Errorf("webhook destination is not publicly routable")
+	}
+	return nil
+}
+
+func safeDialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return nil, fmt.Errorf("invalid webhook destination: %w", err)
+	}
+	ips, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+	if err != nil {
+		return nil, fmt.Errorf("resolving webhook destination: %w", err)
+	}
+	var lastErr error
+	dialer := &net.Dialer{Timeout: 5 * time.Second}
+	for _, ip := range ips {
+		if isBlockedWebhookIP(ip) {
+			lastErr = fmt.Errorf("resolved webhook destination is not publicly routable")
+			continue
+		}
+		conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+		if err == nil {
+			return conn, nil
+		}
+		lastErr = err
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("no usable webhook destination")
+	}
+	return nil, lastErr
+}
+
+func isBlockedWebhookIP(ip netip.Addr) bool {
+	return ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() ||
+		ip.IsUnspecified() || ip.IsMulticast()
 }

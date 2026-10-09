@@ -45,13 +45,6 @@ linters:
     godot:
       scope: declarations
       capital: false
-
-formatters:
-  enable:
-    - gofmt
-    - goimports
-
-linters:
   exclusions:
     rules:
       - path: "_test\\.go"
@@ -65,6 +58,11 @@ linters:
       - path: "migrations/"
         linters:
           - all
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
 
 issues:
   max-issues-per-linter: 50

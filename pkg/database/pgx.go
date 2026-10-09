@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -10,11 +11,17 @@ import (
 )
 
 // NewPool creates and validates a pgx connection pool with the given configuration.
-// Connection pool settings are tuned for a typical auth service workload.
 func NewPool(ctx context.Context, cfg *config.DatabaseConfig) (*pgxpool.Pool, error) {
 	poolCfg, err := pgxpool.ParseConfig(cfg.DSN())
 	if err != nil {
 		return nil, fmt.Errorf("parsing database DSN: %w", err)
+	}
+
+	if cfg.MaxOpenConns <= 0 || cfg.MaxOpenConns > math.MaxInt32 {
+		return nil, fmt.Errorf("database.max_open_conns must be between 1 and %d", math.MaxInt32)
+	}
+	if cfg.MaxIdleConns < 0 || cfg.MaxIdleConns > cfg.MaxOpenConns || cfg.MaxIdleConns > math.MaxInt32 {
+		return nil, fmt.Errorf("database.max_idle_conns must be between 0 and max_open_conns")
 	}
 
 	poolCfg.MaxConns = int32(cfg.MaxOpenConns)
@@ -28,7 +35,6 @@ func NewPool(ctx context.Context, cfg *config.DatabaseConfig) (*pgxpool.Pool, er
 		return nil, fmt.Errorf("creating pgx pool: %w", err)
 	}
 
-	// Fail fast: verify connectivity before the service starts accepting traffic.
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
 		return nil, fmt.Errorf("pinging database: %w", err)
@@ -37,15 +43,12 @@ func NewPool(ctx context.Context, cfg *config.DatabaseConfig) (*pgxpool.Pool, er
 	return pool, nil
 }
 
-// HealthCheck pings the database and returns an error if unreachable.
-// Used by the /ready endpoint.
 func HealthCheck(ctx context.Context, pool *pgxpool.Pool) error {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	return pool.Ping(ctx)
 }
 
-// Stats returns connection pool statistics for metrics/observability.
 func Stats(pool *pgxpool.Pool) pgxpool.Stat {
 	return *pool.Stat()
 }

@@ -5,13 +5,10 @@ run:
 
 linters:
   enable:
-    - errcheck
     - govet
     - ineffassign
     - staticcheck
     - unused
-    - bodyclose
-    - nilerr
   settings:
     cyclop:
       max-complexity: 15

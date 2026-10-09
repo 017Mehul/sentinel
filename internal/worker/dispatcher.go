@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/MehulChamoli/auth-service/config"
+	gomail "gopkg.in/gomail.v2"
 	"github.com/rs/zerolog/log"
 )
 
@@ -77,5 +79,47 @@ func (l *LogDispatcher) Dispatch(ctx context.Context, event OutboxEvent) error {
 		return fmt.Errorf("unhandled event type: %s", event.EventType)
 	}
 
+	return nil
+}
+
+// SMTPDispatcher delivers authentication emails through the configured SMTP server.
+type SMTPDispatcher struct {
+	cfg config.SMTPConfig
+}
+
+func NewSMTPDispatcher(cfg config.SMTPConfig) *SMTPDispatcher { return &SMTPDispatcher{cfg: cfg} }
+
+func (d *SMTPDispatcher) Dispatch(ctx context.Context, event OutboxEvent) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+	var to, subject, body string
+	switch event.EventType {
+	case "auth.user.registered":
+		var p RegistrationPayload
+		if err := json.Unmarshal(event.Payload, &p); err != nil { return fmt.Errorf("parsing registration email payload: %w", err) }
+		to, subject = p.Email, "Verify your Sentinel account"
+		body = fmt.Sprintf("Hello %s,\n\nVerify your Sentinel account with this token:\n%s\n\nIf you did not create this account, ignore this email.", p.Name, p.Token)
+	case "auth.password.reset":
+		var p PasswordResetPayload
+		if err := json.Unmarshal(event.Payload, &p); err != nil { return fmt.Errorf("parsing password reset email payload: %w", err) }
+		to, subject = p.Email, "Reset your Sentinel password"
+		body = fmt.Sprintf("Your Sentinel password reset token is:\n%s\n\nIf you did not request this, ignore this email.", p.Token)
+	default:
+		return fmt.Errorf("unsupported email event type: %s", event.EventType)
+	}
+	if d.cfg.Host == "" || d.cfg.FromEmail == "" { return fmt.Errorf("smtp is not configured") }
+	msg := gomail.NewMessage()
+	from := d.cfg.FromEmail
+	if d.cfg.FromName != "" { from = fmt.Sprintf("%s <%s>", d.cfg.FromName, d.cfg.FromEmail) }
+	msg.SetHeader("From", from)
+	msg.SetHeader("To", to)
+	msg.SetHeader("Subject", subject)
+	msg.SetBody("text/plain", body)
+	dialer := gomail.NewDialer(d.cfg.Host, d.cfg.Port, d.cfg.Username, d.cfg.Password)
+	if d.cfg.TLSEnabled { dialer.SSL = true }
+	if err := dialer.DialAndSend(msg); err != nil { return fmt.Errorf("sending email: %w", err) }
 	return nil
 }

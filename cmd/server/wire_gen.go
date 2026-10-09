@@ -79,7 +79,7 @@ func InitializeApp(cfg *config.Config) (*App, func(), error) {
 
 	app := &App{
 		Router:     api.NewRouter(cfg, tokenManager, authHandler, userHandler, adminHandler, mfaHandler, oauthHandler, pool, redisClient, collector),
-		GRPCServer: pkggrpc.NewServer(),
+		GRPCServer: pkggrpc.NewServer(authSvc),
 		Workers:    worker.NewManager(pool, nil),
 	}
 

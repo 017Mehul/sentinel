@@ -445,7 +445,7 @@ func (s *Service) issueSessionWithFamily(ctx context.Context, tx dbTX, u user.Us
 		return nil, err
 	}
 
-	if err := tx.Commit(ctx); err != nil {
+	if err := commitTx(ctx, tx); err != nil {
 		return nil, fmt.Errorf("committing auth transaction: %w", err)
 	}
 
@@ -468,6 +468,14 @@ func (s *Service) issueSessionWithFamily(ctx context.Context, tx dbTX, u user.Us
 		ExpiresIn:    int(s.tokens.AccessTTL().Seconds()),
 		SessionID:    sessionID,
 	}, nil
+}
+
+func commitTx(ctx context.Context, tx dbTX) error {
+	committer, ok := tx.(interface{ Commit(context.Context) error })
+	if !ok {
+		return fmt.Errorf("transaction does not support commit")
+	}
+	return committer.Commit(ctx)
 }
 
 func deviceInfoFrom(userAgent string) map[string]any {

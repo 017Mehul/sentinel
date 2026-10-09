@@ -182,7 +182,7 @@ type TLSConfig struct {
 // Load reads configuration from the YAML file and overlays environment variables.
 // Environment variables take precedence over file values.
 func Load(configPath string) (*Config, error) {
-	raw, err := os.ReadFile(configPath)
+	raw, err := os.ReadFile(configPath) // #nosec G304 -- config path is explicit startup configuration
 	if err != nil {
 		return nil, fmt.Errorf("reading config file %q: %w", configPath, err)
 	}

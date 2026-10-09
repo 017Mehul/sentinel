@@ -23,6 +23,9 @@ func newTestRouter(mw gin.HandlerFunc) *gin.Engine {
 	r.GET("/ping", func(c *gin.Context) {
 		c.Status(http.StatusOK)
 	})
+	r.POST("/ping", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
 	return r
 }
 
@@ -49,7 +52,6 @@ func TestRateLimitMiddleware_NilConfig_PassesThrough(t *testing.T) {
 }
 
 func TestRateLimitMiddleware_NilRedis_FailsOpen(t *testing.T) {
-	// When Redis is nil (RateLimiter skips), requests should pass through
 	mw := RateLimitMiddleware(&config.RateLimitConfig{
 		Enabled:    true,
 		GeneralRPM: 10,
@@ -64,7 +66,6 @@ func TestRateLimitMiddleware_NilRedis_FailsOpen(t *testing.T) {
 }
 
 func TestIdempotencyMiddleware_SkipsGET(t *testing.T) {
-	// Idempotency key on a GET request should be ignored
 	mw := IdempotencyMiddleware(nil)
 	r := newTestRouter(mw)
 
@@ -76,7 +77,6 @@ func TestIdempotencyMiddleware_SkipsGET(t *testing.T) {
 }
 
 func TestIdempotencyMiddleware_NoKey_PassesThrough(t *testing.T) {
-	// No idempotency key — middleware is a no-op
 	mw := IdempotencyMiddleware(nil)
 	r := newTestRouter(mw)
 
@@ -87,7 +87,6 @@ func TestIdempotencyMiddleware_NoKey_PassesThrough(t *testing.T) {
 }
 
 func TestIdempotencyMiddleware_NilRedis_PassesThrough(t *testing.T) {
-	// When Redis is nil the middleware must not block the request
 	mw := IdempotencyMiddleware(nil)
 	r := newTestRouter(mw)
 

@@ -77,8 +77,18 @@ func TestManager_Verify_RejectsTamperedSignature(t *testing.T) {
 	tok, _, err := mgr.IssueAccessToken("user-1", "sess-1", []string{"user"})
 	require.NoError(t, err)
 
-	// Flip the last character of the signature
-	tampered := tok[:len(tok)-1] + "X"
+	// Flip a meaningful character inside the signature segment. Changing the
+	// final base64url character can leave the decoded bytes unchanged because
+	// its unused low bits are ignored by the decoder.
+	parts := strings.Split(tok, ".")
+	require.Len(t, parts, 3)
+	sig := parts[2]
+	replacement := "A"
+	if sig[0] == 'A' {
+		replacement = "B"
+	}
+	parts[2] = replacement + sig[1:]
+	tampered := strings.Join(parts, ".")
 	_, err = mgr.Verify(tampered)
 	assert.Error(t, err)
 }

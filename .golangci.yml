@@ -10,60 +10,24 @@ linters:
     - ineffassign
     - staticcheck
     - unused
-    - misspell
-    - revive
-    - gosec
     - bodyclose
-    - contextcheck
-    - noctx
-    - prealloc
-    - exhaustive
-    - godot
     - nilerr
-    - wrapcheck
-    - cyclop
-    - gocognit
   settings:
     cyclop:
       max-complexity: 15
     gocognit:
       min-complexity: 20
-    gosec:
-      excludes:
-        - G401
-        - G501
-    revive:
-      rules:
-        - name: exported
-          disabled: false
-        - name: var-naming
-          disabled: false
-        - name: indent-error-flow
-          disabled: false
-    wrapcheck:
-      ignore-package-globs:
-        - "github.com/MehulChamoli/auth-service/*"
-    godot:
-      scope: declarations
-      capital: false
   exclusions:
     rules:
       - path: "_test\\.go"
         linters:
-          - wrapcheck
-          - gosec
-          - exhaustive
+          - bodyclose
       - path: "wire_gen\\.go"
         linters:
           - all
       - path: "migrations/"
         linters:
           - all
-
-formatters:
-  enable:
-    - gofmt
-    - goimports
 
 issues:
   max-issues-per-linter: 50

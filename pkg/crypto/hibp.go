@@ -32,7 +32,7 @@ func (h *HIBPClient) IsPwned(ctx context.Context, password string) (bool, int, e
 		return false, 0, nil
 	}
 
-	hash := fmt.Sprintf("%X", sha1.Sum([]byte(password)))
+	hash := fmt.Sprintf("%X", sha1.Sum([]byte(password))) // #nosec G505 -- SHA-1 is required by the HIBP k-anonymity API contract
 	prefix := hash[:5]
 	suffix := hash[5:]
 

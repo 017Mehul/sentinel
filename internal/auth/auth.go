@@ -652,3 +652,37 @@ func (h *Handler) Logout(c *gin.Context) {
 	}
 	response.NoContent(c)
 }
+
+func (s *Service) ValidateAccessToken(ctx context.Context, tokenString string) (*token.Claims, error) {
+	claims, err := s.tokens.Verify(strings.TrimSpace(tokenString))
+	if err != nil { return nil, err }
+	if claims.SessionID == "" { return nil, apperrors.ErrTokenInvalid() }
+	if s.cache != nil {
+		active, err := s.cache.Exists(ctx, "session:"+claims.SessionID)
+		if err != nil { return nil, fmt.Errorf("checking session: %w", err) }
+		if !active { return nil, apperrors.ErrTokenInvalid() }
+	}
+	return claims, nil
+}
+
+func (s *Service) GetUserForToken(ctx context.Context, userID string) (*user.User, []string, error) {
+	u, err := s.users.GetByID(ctx, nil, userID)
+	if err != nil { return nil, nil, err }
+	roles, err := s.users.ListRoles(ctx, nil, userID)
+	if err != nil { return nil, nil, err }
+	return u, roles, nil
+}
+
+func (r *Repository) HasPermission(ctx context.Context, userID, permission string) (bool, error) {
+	var allowed bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM user_roles ur
+			JOIN role_permissions rp ON rp.role_id = ur.role_id
+			JOIN permissions p ON p.id = rp.permission_id
+			WHERE ur.user_id = $1 AND p.name = $2
+		)`, userID, permission).Scan(&allowed)
+	if err != nil { return false, fmt.Errorf("checking permission: %w", err) }
+	return allowed, nil
+}

@@ -4,75 +4,68 @@ run:
 
 linters:
   enable:
-    - errcheck        # unchecked errors
-    - gosimple        # simplification suggestions
-    - govet           # go vet checks
-    - ineffassign     # assigned but never used
-    - staticcheck     # comprehensive static analysis
-    - unused          # unused code
-    - gofmt           # formatting
-    - goimports       # import ordering
-    - misspell        # spelling
-    - revive          # drop-in replacement for golint
-    - gosec           # security issues
-    - bodyclose       # http response body close
-    - contextcheck    # context propagation
-    - noctx           # http requests without context
-    - prealloc        # slice pre-allocation
-    - exhaustive      # exhaustive switch statements on enums
-    - godot           # comment formatting
-    - nilerr          # return nil after checking err != nil
-    - wrapcheck       # errors from external packages must be wrapped
-    - cyclop          # cyclomatic complexity
-    - gocognit        # cognitive complexity
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - revive
+    - gosec
+    - bodyclose
+    - contextcheck
+    - noctx
+    - prealloc
+    - exhaustive
+    - godot
+    - nilerr
+    - wrapcheck
+    - cyclop
+    - gocognit
+  settings:
+    cyclop:
+      max-complexity: 15
+    gocognit:
+      min-complexity: 20
+    gosec:
+      excludes:
+        - G401
+        - G501
+    revive:
+      rules:
+        - name: exported
+          disabled: false
+        - name: var-naming
+          disabled: false
+        - name: indent-error-flow
+          disabled: false
+    wrapcheck:
+      ignore-package-globs:
+        - "github.com/MehulChamoli/auth-service/*"
+    godot:
+      scope: declarations
+      capital: false
 
-linters-settings:
-  cyclop:
-    max-complexity: 15
+formatters:
+  enable:
+    - gofmt
+    - goimports
 
-  gocognit:
-    min-complexity: 20
-
-  gosec:
-    excludes:
-      - G401  # MD5/SHA1 — used intentionally in HIBP (k-anonymity SHA1)
-      - G501  # MD5/SHA1 import
-
-  revive:
+linters:
+  exclusions:
     rules:
-      - name: exported
-        disabled: false
-      - name: var-naming
-        disabled: false
-      - name: indent-error-flow
-        disabled: false
-
-  wrapcheck:
-    ignorePackageGlobs:
-      - "github.com/MehulChamoli/auth-service/*"
-
-  godot:
-    scope: declarations
-    capital: false
+      - path: "_test\\.go"
+        linters:
+          - wrapcheck
+          - gosec
+          - exhaustive
+      - path: "wire_gen\\.go"
+        linters:
+          - all
+      - path: "migrations/"
+        linters:
+          - all
 
 issues:
-  exclude-rules:
-    # Test files: relax wrapcheck and gosec
-    - path: "_test\\.go"
-      linters:
-        - wrapcheck
-        - gosec
-        - exhaustive
-
-    # Wire-generated file: skip all linters
-    - path: "wire_gen\\.go"
-      linters:
-        - all
-
-    # Migration files are SQL, not Go
-    - path: "migrations/"
-      linters:
-        - all
-
   max-issues-per-linter: 50
   max-same-issues: 10

@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"net/url"
 	"regexp"
 	"fmt"
 	"strings"
@@ -303,6 +304,13 @@ func validate(cfg *Config) error {
 		}
 		if len(cfg.CORS.AllowedOrigins) == 0 {
 			errs = append(errs, "cors.allowed_origins must contain at least one origin in production")
+		}
+		for _, origin := range cfg.CORS.AllowedOrigins {
+			parsed, err := url.Parse(origin)
+			if origin == "*" || err != nil || parsed == nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil {
+				errs = append(errs, "cors.allowed_origins must contain explicit HTTPS origins (wildcards are forbidden) in production")
+				break
+			}
 		}
 	}
 

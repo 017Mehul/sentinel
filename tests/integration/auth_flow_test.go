@@ -39,6 +39,12 @@ type testEnv struct {
 	redis  *cache.Client
 }
 
+type allowAllBreachChecker struct{}
+
+func (allowAllBreachChecker) IsPwned(context.Context, string) (bool, int, error) {
+	return false, 0, nil
+}
+
 // setupTestEnv spins up Postgres + Redis containers, runs migrations, and
 // returns a fully wired router ready to serve requests.
 func setupTestEnv(t *testing.T) *testEnv {
@@ -127,7 +133,7 @@ func setupTestEnv(t *testing.T) *testEnv {
 	adminHandler := admin.NewHandler(adminSvc)
 
 	authRepo := auth.NewRepository(pool)
-	authSvc := auth.NewService(authRepo, userRepo, mfaSvc, redisClient, tokenMgr, sec, "test")
+	authSvc := auth.NewServiceWithPasswordBreachChecker(authRepo, userRepo, mfaSvc, redisClient, tokenMgr, sec, "test", allowAllBreachChecker{})
 	authHandler := auth.NewHandler(authSvc)
 
 	cfg := &config.Config{

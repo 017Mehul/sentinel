@@ -1,4 +1,5 @@
 .git
+.github
 .agents
 .codex
 bin
@@ -6,3 +7,10 @@ tmp
 coverage.out
 coverage.html
 *.log
+.env
+.env.*
+!.env.example
+certs/*
+!certs/.gitkeep
+Dockerfile*
+docker-compose*.yml

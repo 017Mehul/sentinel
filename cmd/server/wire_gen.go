@@ -77,9 +77,16 @@ func InitializeApp(cfg *config.Config) (*App, func(), error) {
 		return nil, nil, fmt.Errorf("initializing metrics: %w", err)
 	}
 
+	grpcServer, err := pkggrpc.NewServer(authSvc, cfg.TLS)
+	if err != nil {
+		_ = redisClient.Close()
+		pool.Close()
+		return nil, nil, fmt.Errorf("initializing gRPC server: %w", err)
+	}
+
 	app := &App{
 		Router:     api.NewRouter(cfg, tokenManager, authHandler, userHandler, adminHandler, mfaHandler, oauthHandler, pool, redisClient, collector),
-		GRPCServer: pkggrpc.NewServer(authSvc),
+		GRPCServer: grpcServer,
 		Workers:    worker.NewManager(pool, nil),
 	}
 

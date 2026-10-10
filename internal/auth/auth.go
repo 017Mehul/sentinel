@@ -317,6 +317,21 @@ func (s *Service) Login(ctx context.Context, req LoginRequest, ipAddress, userAg
 	}
 
 	now := time.Now()
+	// Treat the persisted failure counter as an independent lockout signal.
+	// This prevents a stale/missing is_locked flag from bypassing lockout.
+	if u.FailedAttempts >= s.security.AccountLockMaxAttempts &&
+		u.LockedUntil != nil && u.LockedUntil.After(now) {
+		if !u.IsLocked {
+			if err := s.users.SetLockState(ctx, tx, u.ID, true, u.LockedUntil); err != nil {
+				return nil, err
+			}
+		}
+		_ = s.repo.CreateLoginHistory(ctx, tx, u.ID, u.Email, ipAddress, userAgent, false, "account_locked")
+		if commitErr := commitTx(ctx, tx); commitErr != nil {
+			return nil, fmt.Errorf("committing locked login history: %w", commitErr)
+		}
+		return nil, apperrors.ErrAccountLocked(u.LockedUntil.UTC().Format(time.RFC3339))
+	}
 	if u.IsLocked && u.LockedUntil != nil && u.LockedUntil.After(now) {
 		_ = s.repo.CreateLoginHistory(ctx, tx, u.ID, u.Email, ipAddress, userAgent, false, "account_locked")
 		if commitErr := commitTx(ctx, tx); commitErr != nil {

@@ -34,6 +34,10 @@ type Repository struct {
 }
 
 // Service contains auth business logic.
+type PasswordBreachChecker interface {
+	IsPwned(context.Context, string) (bool, int, error)
+}
+
 type Service struct {
 	repo      *Repository
 	users     *user.Repository
@@ -41,6 +45,7 @@ type Service struct {
 	cache     *cache.Client
 	tokens    *token.Manager
 	security  config.SecurityConfig
+	hibp      PasswordBreachChecker
 	isProd    bool // true when app.env == "production"; suppresses tokens in HTTP responses
 }
 
@@ -94,14 +99,15 @@ type RefreshTokenRecord struct {
 func NewRepository(db *pgxpool.Pool) *Repository { return &Repository{db: db} }
 
 func NewService(repo *Repository, users *user.Repository, mfaSvc *mfa.Service, c *cache.Client, tokens *token.Manager, security *config.SecurityConfig, appEnv string) *Service {
+	return NewServiceWithPasswordBreachChecker(repo, users, mfaSvc, c, tokens, security, appEnv, crypto.NewHIBPClient(2*time.Second))
+}
+
+// NewServiceWithPasswordBreachChecker allows deterministic breach-check behavior in tests
+// while keeping the production constructor wired to the real HIBP client.
+func NewServiceWithPasswordBreachChecker(repo *Repository, users *user.Repository, mfaSvc *mfa.Service, c *cache.Client, tokens *token.Manager, security *config.SecurityConfig, appEnv string, checker PasswordBreachChecker) *Service {
 	return &Service{
-		repo:     repo,
-		users:    users,
-		mfa:      mfaSvc,
-		cache:    c,
-		tokens:   tokens,
-		security: *security,
-		isProd:   appEnv == "production",
+		repo: repo, users: users, mfa: mfaSvc, cache: c, tokens: tokens,
+		security: *security, hibp: checker, isProd: appEnv == "production",
 	}
 }
 
@@ -302,6 +308,9 @@ func (s *Service) Login(ctx context.Context, req LoginRequest, ipAddress, userAg
 	if err != nil {
 		if ae := apperrors.AsAppError(err); ae != nil && ae.Code == apperrors.CodeUserNotFound {
 			_ = s.repo.CreateLoginHistory(ctx, tx, "", req.Email, ipAddress, userAgent, false, "invalid_credentials")
+			if commitErr := commitTx(ctx, tx); commitErr != nil {
+				return nil, fmt.Errorf("committing failed login history: %w", commitErr)
+			}
 			return nil, apperrors.ErrInvalidCredentials()
 		}
 		return nil, err
@@ -310,6 +319,9 @@ func (s *Service) Login(ctx context.Context, req LoginRequest, ipAddress, userAg
 	now := time.Now()
 	if u.IsLocked && u.LockedUntil != nil && u.LockedUntil.After(now) {
 		_ = s.repo.CreateLoginHistory(ctx, tx, u.ID, u.Email, ipAddress, userAgent, false, "account_locked")
+		if commitErr := commitTx(ctx, tx); commitErr != nil {
+			return nil, fmt.Errorf("committing locked login history: %w", commitErr)
+		}
 		return nil, apperrors.ErrAccountLocked(u.LockedUntil.UTC().Format(time.RFC3339))
 	}
 
@@ -327,6 +339,9 @@ func (s *Service) Login(ctx context.Context, req LoginRequest, ipAddress, userAg
 			}
 		}
 		_ = s.repo.CreateLoginHistory(ctx, tx, u.ID, u.Email, ipAddress, userAgent, false, "invalid_credentials")
+		if commitErr := commitTx(ctx, tx); commitErr != nil {
+			return nil, fmt.Errorf("committing failed login attempt: %w", commitErr)
+		}
 		return nil, apperrors.ErrInvalidCredentials()
 	}
 
@@ -338,6 +353,9 @@ func (s *Service) Login(ctx context.Context, req LoginRequest, ipAddress, userAg
 
 	if !u.IsVerified {
 		_ = s.repo.CreateLoginHistory(ctx, tx, u.ID, u.Email, ipAddress, userAgent, false, "email_not_verified")
+		if commitErr := commitTx(ctx, tx); commitErr != nil {
+			return nil, fmt.Errorf("committing unverified login history: %w", commitErr)
+		}
 		return nil, apperrors.ErrEmailNotVerified()
 	}
 

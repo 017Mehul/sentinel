@@ -189,17 +189,21 @@ func requestIDMiddleware() gin.HandlerFunc {
 func corsMiddleware(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
-		allowed := false
-		for _, candidate := range cfg.CORS.AllowedOrigins {
-			if candidate == "*" || candidate == origin {
-				allowed = true
-				break
+		if origin != "" {
+			for _, candidate := range cfg.CORS.AllowedOrigins {
+				if candidate == "*" && !cfg.CORS.AllowCredentials {
+					c.Header("Access-Control-Allow-Origin", "*")
+					break
+				}
+				if candidate == origin {
+					c.Header("Access-Control-Allow-Origin", origin)
+					c.Header("Vary", "Origin")
+					if cfg.CORS.AllowCredentials {
+						c.Header("Access-Control-Allow-Credentials", "true")
+					}
+					break
+				}
 			}
-		}
-		if allowed && origin != "" {
-			c.Header("Access-Control-Allow-Origin", origin)
-			c.Header("Vary", "Origin")
-			c.Header("Access-Control-Allow-Credentials", "true")
 		}
 		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")

@@ -93,7 +93,7 @@ make migrate-up
 
 ## gRPC API
 
-The gRPC service listens on `:9090` by default and exposes `sentinel.auth.v1.AuthService`:
+The gRPC service listens on `:9090` by default and exposes `auth.v1.AuthService`:
 
 - `ValidateToken`: validates a supplied access token and checks that its session remains active.
 - `GetUser`: requires `authorization: Bearer <access-token>`; users may read their own profile, while admins may read another user's profile.
@@ -138,6 +138,8 @@ make security            # gosec + govulncheck
 | Method | Path | |
 |---|---|---|
 | GET | `/api/v1/users/me` | profile + roles |
+| GET | `/api/v1/sessions` | list current user's sessions |
+| DELETE | `/api/v1/sessions/current` | revoke current session |
 | PATCH | `/api/v1/users/me` | update profile |
 
 ### MFA (requires auth)

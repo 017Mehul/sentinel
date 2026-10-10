@@ -1,10 +1,10 @@
 module github.com/MehulChamoli/auth-service
 
-go 1.26
+go 1.26.9
 
 require (
 	github.com/gin-gonic/gin v1.10.0
-	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/jackc/pgx/v5 v5.7.1
 	github.com/golang-migrate/migrate/v4 v4.18.1
 	github.com/redis/go-redis/v9 v9.7.0
@@ -19,11 +19,11 @@ require (
 	google.golang.org/grpc v1.69.2
 	google.golang.org/protobuf v1.36.1
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.2.0
-	go.opentelemetry.io/otel v1.33.0
-	go.opentelemetry.io/otel/sdk v1.33.0
-	go.opentelemetry.io/otel/trace v1.33.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.33.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.33.0
+	go.opentelemetry.io/otel v1.45.0
+	go.opentelemetry.io/otel/sdk v1.45.0
+	go.opentelemetry.io/otel/trace v1.45.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.45.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.45.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.58.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.58.0
 	github.com/prometheus/client_golang v1.20.5
@@ -36,6 +36,6 @@ require (
 	github.com/testcontainers/testcontainers-go v0.35.0
 	github.com/stretchr/testify v1.10.0
 	github.com/stretchr/objx v0.5.2
-	golang.org/x/net v0.33.0
+	golang.org/x/net v0.61.0
 	github.com/boombuler/barcode v1.0.2
 )

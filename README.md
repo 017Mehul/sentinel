@@ -1,7 +1,7 @@
 # sentinel
 
 [![CI](https://github.com/017Mehul/sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/017Mehul/sentinel/actions/workflows/ci.yml)
-[![Go Version](https://img.shields.io/badge/go-1.24-blue)](https://golang.org/dl/)
+[![Go Version](https://img.shields.io/badge/go-1.26-blue)](https://golang.org/dl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A full authentication microservice built in Go. I started this to get a proper understanding of auth flows — JWTs, refresh token rotation, MFA, OAuth — by actually building them rather than dropping in a library.
@@ -44,7 +44,7 @@ It covers most of what you'd need in a real app: register/login, email verificat
 
 | | |
 |---|---|
-| Language | Go 1.24 |
+| Language | Go 1.26.9 |
 | Web | Gin |
 | RPC | gRPC + Protobuf |
 | DB | PostgreSQL 16 (pgx/v5 + golang-migrate) |
@@ -57,7 +57,7 @@ It covers most of what you'd need in a real app: register/login, email verificat
 
 ## Getting started
 
-You need Go 1.24+ and Docker.
+You need Go 1.26.9+ and Docker.
 
 ```bash
 git clone https://github.com/017Mehul/sentinel.git
@@ -90,6 +90,16 @@ make migrate-up
 ```
 
 ---
+
+## gRPC API
+
+The gRPC service listens on `:9090` by default and exposes `sentinel.auth.v1.AuthService`:
+
+- `ValidateToken`: validates a supplied access token and checks that its session remains active.
+- `GetUser`: requires `authorization: Bearer <access-token>`; users may read their own profile, while admins may read another user's profile.
+- `CheckPermission`: requires a bearer token; users may check their own permissions, while admins may check another user's permissions.
+
+For `GetUser` and `CheckPermission`, pass the access token in gRPC metadata using the `authorization` key. Requests without valid authentication are rejected with `UNAUTHENTICATED`; unauthorized cross-user requests return `PERMISSION_DENIED`.
 
 ## Testing
 

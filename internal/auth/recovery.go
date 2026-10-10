@@ -78,14 +78,15 @@ func (s *Service) createUserAndVerification(ctx context.Context, req RegisterReq
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 
-	hibp := crypto.NewHIBPClient(2 * time.Second)
-	pwned, _, hibpErr := hibp.IsPwned(ctx, req.Password)
+	if s.hibp != nil {
+		pwned, _, hibpErr := s.hibp.IsPwned(ctx, req.Password)
 	if hibpErr != nil {
 		// HIBP is unavailable — log the error so operators can alert on this,
 		// but fail-open to avoid blocking registrations during outages.
 		log.Warn().Err(hibpErr).Msg("HIBP check failed — proceeding without breach validation")
-	} else if pwned {
-		return nil, apperrors.ErrPasswordBreached()
+		} else if pwned {
+			return nil, apperrors.ErrPasswordBreached()
+		}
 	}
 
 	passwordHash, err := crypto.HashPassword(req.Password, s.security.BcryptCost)

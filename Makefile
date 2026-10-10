@@ -53,7 +53,12 @@ sqlc:
 	@echo "▶ No sqlc queries are currently defined"
 
 proto:
-	@echo "▶ Protobuf source is in proto/auth/v1/auth.proto; generated stubs are not checked in"
+	@echo "▶ Protobuf source: proto/auth/v1/auth.proto"
+	@echo "▶ Generated Go bindings are checked in under proto/auth/v1/"
+	@command -v protoc >/dev/null || (echo "protoc is required to regenerate bindings" && exit 1)
+	@command -v protoc-gen-go >/dev/null || (echo "install protoc-gen-go first" && exit 1)
+	@command -v protoc-gen-go-grpc >/dev/null || (echo "install protoc-gen-go-grpc first" && exit 1)
+	protoc --go_out=. --go_opt=module=github.com/MehulChamoli/auth-service --go-grpc_out=. --go-grpc_opt=module=github.com/MehulChamoli/auth-service proto/auth/v1/auth.proto
 
 gen-keys:
 	@echo "▶ Generating RS256 key pair..."
@@ -102,7 +107,7 @@ test-integration:
 
 test-cover:
 	@echo "▶ Running tests with coverage..."
-	$(GO) test -race -coverprofile=coverage.out -covermode=atomic ./...
+	$(GO) test -coverprofile=coverage.out -covermode=atomic ./...
 	$(GO) tool cover -html=coverage.out -o coverage.html
 	@echo "✔ Coverage report: coverage.html"
 

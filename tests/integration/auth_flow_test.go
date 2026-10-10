@@ -242,7 +242,7 @@ func TestIntegration_Register_And_Login(t *testing.T) {
 	// 1. Register
 	rec := postJSON(t, env.router, "/api/v1/auth/register", map[string]any{
 		"email":     "alice@example.com",
-		"password":  "SecurePass123!",
+		"password":  "Sntnl-Int-2026-X7qM4vP9zL2kR8!a",
 		"full_name": "Alice Example",
 	})
 	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
@@ -256,7 +256,7 @@ func TestIntegration_Register_And_Login(t *testing.T) {
 	// 2. Login before verifying email → should fail
 	rec = postJSON(t, env.router, "/api/v1/auth/login", map[string]any{
 		"email":    "alice@example.com",
-		"password": "SecurePass123!",
+		"password": "Sntnl-Int-2026-X7qM4vP9zL2kR8!a",
 	})
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 	errBody := decodeBody(t, rec)
@@ -271,7 +271,7 @@ func TestIntegration_Register_And_Login(t *testing.T) {
 	// 4. Login → should succeed
 	rec = postJSON(t, env.router, "/api/v1/auth/login", map[string]any{
 		"email":    "alice@example.com",
-		"password": "SecurePass123!",
+		"password": "Sntnl-Int-2026-X7qM4vP9zL2kR8!a",
 	})
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
@@ -295,7 +295,7 @@ func TestIntegration_Login_WrongPassword(t *testing.T) {
 
 	// Register + verify
 	rec := postJSON(t, env.router, "/api/v1/auth/register", map[string]any{
-		"email": "bob@example.com", "password": "RightPass123!", "full_name": "Bob",
+		"email": "bob@example.com", "password": "Sntnl-Int-2026-B6nT3wQ8yK5mH1!c", "full_name": "Bob",
 	})
 	require.Equal(t, http.StatusCreated, rec.Code)
 	token := decodeBody(t, rec)["data"].(map[string]any)["email_verification_token"].(string)
@@ -316,7 +316,7 @@ func TestIntegration_AccountLockout(t *testing.T) {
 
 	// Register + verify
 	rec := postJSON(t, env.router, "/api/v1/auth/register", map[string]any{
-		"email": "charlie@example.com", "password": "RightPass123!", "full_name": "Charlie",
+		"email": "charlie@example.com", "password": "Sntnl-Int-2026-B6nT3wQ8yK5mH1!c", "full_name": "Charlie",
 	})
 	require.Equal(t, http.StatusCreated, rec.Code)
 	vt := decodeBody(t, rec)["data"].(map[string]any)["email_verification_token"].(string)
@@ -333,7 +333,7 @@ func TestIntegration_AccountLockout(t *testing.T) {
 
 	// Next attempt should be locked (423)
 	rec = postJSON(t, env.router, "/api/v1/auth/login", map[string]any{
-		"email": "charlie@example.com", "password": "RightPass123!",
+		"email": "charlie@example.com", "password": "Sntnl-Int-2026-B6nT3wQ8yK5mH1!c",
 	})
 	assert.Equal(t, http.StatusLocked, rec.Code)
 	assert.Equal(t, "AUTH_002", decodeBody(t, rec)["error"].(map[string]any)["code"])
@@ -347,7 +347,7 @@ func TestIntegration_TokenRefreshRotation(t *testing.T) {
 
 	// Register + verify + login
 	rec := postJSON(t, env.router, "/api/v1/auth/register", map[string]any{
-		"email": "dave@example.com", "password": "MyPass123!", "full_name": "Dave",
+		"email": "dave@example.com", "password": "Sntnl-Int-2026-C9rV2pN7xJ4dF6!e", "full_name": "Dave",
 	})
 	require.Equal(t, http.StatusCreated, rec.Code)
 	vt := decodeBody(t, rec)["data"].(map[string]any)["email_verification_token"].(string)
@@ -355,7 +355,7 @@ func TestIntegration_TokenRefreshRotation(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 
 	rec = postJSON(t, env.router, "/api/v1/auth/login", map[string]any{
-		"email": "dave@example.com", "password": "MyPass123!",
+		"email": "dave@example.com", "password": "Sntnl-Int-2026-C9rV2pN7xJ4dF6!e",
 	})
 	require.Equal(t, http.StatusOK, rec.Code)
 	d := decodeBody(t, rec)["data"].(map[string]any)
@@ -384,14 +384,14 @@ func TestIntegration_Logout(t *testing.T) {
 	env := setupTestEnv(t)
 
 	rec := postJSON(t, env.router, "/api/v1/auth/register", map[string]any{
-		"email": "eve@example.com", "password": "EvePwd123!", "full_name": "Eve",
+		"email": "eve@example.com", "password": "Sntnl-Int-2026-D4kW8sL1qZ6hP3!g", "full_name": "Eve",
 	})
 	require.Equal(t, http.StatusCreated, rec.Code)
 	vt := decodeBody(t, rec)["data"].(map[string]any)["email_verification_token"].(string)
 	postJSON(t, env.router, "/api/v1/auth/verify-email", map[string]any{"token": vt})
 
 	rec = postJSON(t, env.router, "/api/v1/auth/login", map[string]any{
-		"email": "eve@example.com", "password": "EvePwd123!",
+		"email": "eve@example.com", "password": "Sntnl-Int-2026-D4kW8sL1qZ6hP3!g",
 	})
 	require.Equal(t, http.StatusOK, rec.Code)
 	d := decodeBody(t, rec)["data"].(map[string]any)
@@ -417,7 +417,7 @@ func TestIntegration_DuplicateEmail(t *testing.T) {
 	env := setupTestEnv(t)
 
 	payload := map[string]any{
-		"email": "frank@example.com", "password": "FrankPwd1!", "full_name": "Frank",
+		"email": "frank@example.com", "password": "Sntnl-Int-2026-E8mY5tR2vN9cQ4!j", "full_name": "Frank",
 	}
 	rec := postJSON(t, env.router, "/api/v1/auth/register", payload)
 	require.Equal(t, http.StatusCreated, rec.Code)

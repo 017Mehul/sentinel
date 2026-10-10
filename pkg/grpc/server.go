@@ -2,12 +2,16 @@ package grpc
 
 import (
 	"context"
+	"crypto/tls"
+	"fmt"
 	"strings"
 
+	"github.com/MehulChamoli/auth-service/config"
 	"github.com/MehulChamoli/auth-service/internal/auth"
 	authv1 "github.com/MehulChamoli/auth-service/proto/auth/v1"
 		"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
@@ -95,9 +99,20 @@ func (s *authServer) CheckPermission(ctx context.Context, req *authv1.CheckPermi
 	return &authv1.CheckPermissionResponse{Allowed: allowed}, nil
 }
 
-func NewServer(authSvc *auth.Service) *Server {
-	srv := grpc.NewServer()
+func NewServer(authSvc *auth.Service, tlsCfg config.TLSConfig) (*Server, error) {
+	opts := make([]grpc.ServerOption, 0, 1)
+	if tlsCfg.Enabled {
+		cert, err := tls.LoadX509KeyPair(tlsCfg.CertFile, tlsCfg.KeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("loading gRPC TLS certificate: %w", err)
+		}
+		opts = append(opts, grpc.Creds(credentials.NewTLS(&tls.Config{
+			Certificates: []tls.Certificate{cert},
+			MinVersion:   tls.VersionTLS12,
+		})))
+	}
+	srv := grpc.NewServer(opts...)
 	authv1.RegisterAuthServiceServer(srv, &authServer{auth: authSvc})
 	reflection.Register(srv)
-	return &Server{Server: srv}
+	return &Server{Server: srv}, nil
 }

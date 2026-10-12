@@ -75,6 +75,9 @@ type RedisConfig struct {
 type JWTConfig struct {
 	PrivateKeyPath   string        `mapstructure:"private_key_path"`
 	PublicKeyPath    string        `mapstructure:"public_key_path"`
+	CurrentKeyID     string        `mapstructure:"current_key_id"`
+	PreviousPublicKeyPath string   `mapstructure:"previous_public_key_path"`
+	PreviousKeyID    string        `mapstructure:"previous_key_id"`
 	AccessTokenTTL   time.Duration `mapstructure:"access_token_ttl"`
 	RefreshTokenTTL  time.Duration `mapstructure:"refresh_token_ttl"`
 	Issuer           string        `mapstructure:"issuer"`
@@ -298,6 +301,9 @@ func validate(cfg *Config) error {
 			if _, err := os.Stat(cfg.JWT.PublicKeyPath); err != nil {
 				errs = append(errs, "jwt.public_key_path must point to an existing key in production")
 			}
+		}
+		if cfg.JWT.PreviousPublicKeyPath != "" && cfg.JWT.PreviousKeyID == "" {
+			errs = append(errs, "jwt.previous_key_id must be set when previous public key is configured")
 		}
 		if !cfg.TLS.Enabled {
 			errs = append(errs, "tls.enabled must be true in production")

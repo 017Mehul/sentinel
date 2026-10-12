@@ -139,12 +139,14 @@ func (r *Router) mountAPIRoutes() {
 	admin.DELETE("/users/roles", r.admin.RemoveRole)
 
 	mfa := v1.Group("/mfa")
+	mfa.Use(middleware.RateLimitMiddleware(&r.cfg.RateLimit, r.redis, true))
 	mfa.Use(r.authMiddleware())
 	mfa.POST("/setup", r.mfa.Setup)
 	mfa.POST("/enable", r.mfa.Enable)
 	mfa.POST("/disable", r.mfa.Disable)
 
 	oauth := v1.Group("/oauth")
+	oauth.Use(middleware.RateLimitMiddleware(&r.cfg.RateLimit, r.redis, true))
 	if r.oauth != nil {
 		oauth.GET("/google/login", r.oauth.GoogleLogin)
 		oauth.GET("/github/login", r.oauth.GitHubLogin)

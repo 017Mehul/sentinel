@@ -1,6 +1,12 @@
 package token
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -191,4 +197,73 @@ func TestManager_Verify_AlgorithmConfusionGuard(t *testing.T) {
 
 	_, err := mgr.Verify(fakeToken)
 	assert.Error(t, err, "alg:none token must be rejected")
+}
+
+
+func TestManager_Rotation_VerifiesPreviousKeyAndPublishesBothKeys(t *testing.T) {
+	tmp := t.TempDir()
+	oldKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	newKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	writePrivate := func(path string, key *rsa.PrivateKey) {
+		pemBytes := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
+		require.NoError(t, os.WriteFile(path, pemBytes, 0600))
+	}
+	writePublic := func(path string, key *rsa.PublicKey) {
+		der := x509.MarshalPKCS1PublicKey(key)
+		pemBytes := pem.EncodeToMemory(&pem.Block{Type: "RSA PUBLIC KEY", Bytes: der})
+		require.NoError(t, os.WriteFile(path, pemBytes, 0644))
+	}
+
+	oldPriv, oldPub := tmp+"/old.pem", tmp+"/old.pub.pem"
+	newPriv, newPub := tmp+"/new.pem", tmp+"/new.pub.pem"
+	writePrivate(oldPriv, oldKey)
+	writePublic(oldPub, &oldKey.PublicKey)
+	writePrivate(newPriv, newKey)
+	writePublic(newPub, &newKey.PublicKey)
+
+	oldMgr, err := NewManager(&config.JWTConfig{
+		PrivateKeyPath: oldPriv, PublicKeyPath: oldPub,
+		CurrentKeyID: "auth-service-key-v1", AccessTokenTTL: 15*time.Minute,
+		Issuer: "issuer", Audience: "aud",
+	})
+	require.NoError(t, err)
+	oldToken, _, err := oldMgr.IssueAccessToken("u1", "s1", nil)
+	require.NoError(t, err)
+
+	rotatedMgr, err := NewManager(&config.JWTConfig{
+		PrivateKeyPath: newPriv, PublicKeyPath: newPub,
+		CurrentKeyID: "auth-service-key-v2", PreviousPublicKeyPath: oldPub, PreviousKeyID: "auth-service-key-v1",
+		AccessTokenTTL: 15*time.Minute, Issuer: "issuer", Audience: "aud",
+	})
+	require.NoError(t, err)
+
+	claims, err := rotatedMgr.Verify(oldToken)
+	require.NoError(t, err)
+	assert.Equal(t, "u1", claims.Subject)
+	newToken, _, err := rotatedMgr.IssueAccessToken("u2", "s2", nil)
+	require.NoError(t, err)
+	newClaims, err := rotatedMgr.Verify(newToken)
+	require.NoError(t, err)
+	assert.Equal(t, "u2", newClaims.Subject)
+
+	jwks := rotatedMgr.JWKS()
+	require.Len(t, jwks.Keys, 2)
+	assert.Equal(t, "auth-service-key-v2", jwks.Keys[0].Kid)
+	assert.Equal(t, "auth-service-key-v1", jwks.Keys[1].Kid)
+}
+
+func TestManager_Rotation_RejectsUnknownKid(t *testing.T) {
+	mgr := newTestManager(t, 15*time.Minute)
+	tok, _, err := mgr.IssueAccessToken("u1", "s1", nil)
+	require.NoError(t, err)
+	parts := strings.Split(tok, ".")
+	require.Len(t, parts, 3)
+	// Replace the header with a valid RS256 header carrying an unknown kid.
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256","typ":"JWT","kid":"unknown-key"}`))
+	parts[0] = header
+	_, err = mgr.Verify(strings.Join(parts, "."))
+	assert.ErrorIs(t, err, ErrTokenInvalid)
 }

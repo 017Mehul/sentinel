@@ -17,46 +17,66 @@ import (
 	"github.com/MehulChamoli/auth-service/config"
 )
 
-// Claims extends the standard JWT claims with application-specific fields.
+const defaultKeyID = "auth-service-key-v1"
+
 type Claims struct {
 	jwt.RegisteredClaims
 	SessionID string   `json:"sid"`
 	Roles     []string `json:"roles"`
 }
 
-// TokenPair holds an access token and refresh token issued together.
 type TokenPair struct {
 	AccessToken  string
-	RefreshToken string // raw random token (not JWT); store SHA-256 hash in DB
-	ExpiresIn    int    // access token TTL in seconds
+	RefreshToken string
+	ExpiresIn    int
 }
 
-const currentKeyID = "auth-service-key-v1"
-
-// Manager handles RS256 JWT signing and verification.
-// The private key is loaded once at startup from the Secrets Manager.
 type Manager struct {
-	privateKey    *rsa.PrivateKey
-	publicKey     *rsa.PublicKey
-	issuer        string
-	audience      string
-	accessTTL     time.Duration
-	refreshTTL    time.Duration
+	privateKey     *rsa.PrivateKey
+	publicKey      *rsa.PublicKey
+	currentKeyID   string
+	previousKeyID  string
+	previousPubKey *rsa.PublicKey
+	issuer         string
+	audience       string
+	accessTTL      time.Duration
+	refreshTTL     time.Duration
 }
 
-// NewManager loads RSA keys from disk and returns a Manager.
 func NewManager(cfg *config.JWTConfig) (*Manager, error) {
 	privateKey, publicKey, err := loadKeyPair(cfg.PrivateKeyPath, cfg.PublicKeyPath)
 	if err != nil {
 		return nil, err
 	}
 
+	currentID := cfg.CurrentKeyID
+	if currentID == "" {
+		currentID = defaultKeyID
+	}
+
+	var previousKey *rsa.PublicKey
+	if cfg.PreviousPublicKeyPath != "" {
+		previousKey, err = loadPublicKey(cfg.PreviousPublicKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("loading previous JWT public key: %w", err)
+		}
+		if cfg.PreviousKeyID == "" {
+			return nil, fmt.Errorf("jwt.previous_key_id must be set when jwt.previous_public_key_path is configured")
+		}
+		if cfg.PreviousKeyID == currentID {
+			return nil, fmt.Errorf("jwt.previous_key_id must differ from jwt.current_key_id")
+		}
+	}
+
 	return &Manager{
 		privateKey: privateKey,
-		publicKey:  publicKey,
-		issuer:     cfg.Issuer,
-		audience:   cfg.Audience,
-		accessTTL:  cfg.AccessTokenTTL,
+		publicKey: publicKey,
+		currentKeyID: currentID,
+		previousKeyID: cfg.PreviousKeyID,
+		previousPubKey: previousKey,
+		issuer: cfg.Issuer,
+		audience: cfg.Audience,
+		accessTTL: cfg.AccessTokenTTL,
 		refreshTTL: cfg.RefreshTokenTTL,
 	}, nil
 }
@@ -70,15 +90,14 @@ func loadKeyPair(privatePath, publicPath string) (*rsa.PrivateKey, *rsa.PublicKe
 		return privateKey, &privateKey.PublicKey, nil
 	}
 
-	privPEM, privErr := os.ReadFile(privatePath) // #nosec G304 -- key path is explicit trusted startup configuration
-	if privErr != nil {
-		if !os.IsNotExist(privErr) {
-			return nil, nil, fmt.Errorf("reading private key: %w", privErr)
+	privPEM, err := os.ReadFile(privatePath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, nil, fmt.Errorf("reading private key: %w", err)
 		}
-
-		privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-		if err != nil {
-			return nil, nil, fmt.Errorf("generating private key: %w", err)
+		privateKey, genErr := rsa.GenerateKey(rand.Reader, 2048)
+		if genErr != nil {
+			return nil, nil, fmt.Errorf("generating private key: %w", genErr)
 		}
 		return privateKey, &privateKey.PublicKey, nil
 	}
@@ -94,147 +113,118 @@ func loadKeyPair(privatePath, publicPath string) (*rsa.PrivateKey, *rsa.PublicKe
 	if publicPath == "" {
 		return privateKey, &privateKey.PublicKey, nil
 	}
-
-	pubPEM, pubErr := os.ReadFile(publicPath) // #nosec G304 -- key path is explicit trusted startup configuration
-	if pubErr != nil {
-		if !os.IsNotExist(pubErr) {
-			return nil, nil, fmt.Errorf("reading public key: %w", pubErr)
-		}
-		return privateKey, &privateKey.PublicKey, nil
-	}
-
-	publicKey, err := jwt.ParseRSAPublicKeyFromPEM(pubPEM)
+	publicKey, err := loadPublicKey(publicPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parsing public key: %w", err)
-	}
-	if publicKey.N.BitLen() < 2048 {
-		return nil, nil, fmt.Errorf("RSA public key must be at least 2048 bits")
+		return nil, nil, err
 	}
 	if publicKey.E != privateKey.E || publicKey.N.Cmp(privateKey.N) != 0 {
 		return nil, nil, fmt.Errorf("RSA public key does not match private key")
 	}
-
 	return privateKey, publicKey, nil
 }
 
-// IssueAccessToken creates and signs a new RS256 access token for the given user.
+func loadPublicKey(path string) (*rsa.PublicKey, error) {
+	pubPEM, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading public key: %w", err)
+	}
+	publicKey, err := jwt.ParseRSAPublicKeyFromPEM(pubPEM)
+	if err != nil {
+		return nil, fmt.Errorf("parsing public key: %w", err)
+	}
+	if publicKey.N.BitLen() < 2048 {
+		return nil, fmt.Errorf("RSA public key must be at least 2048 bits")
+	}
+	return publicKey, nil
+}
+
 func (m *Manager) IssueAccessToken(userID, sessionID string, roles []string) (string, *Claims, error) {
 	now := time.Now()
-	jti := uuid.New().String()
-
 	claims := &Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			ID:        jti,
-			Subject:   userID,
-			Issuer:    m.issuer,
-			Audience:  jwt.ClaimStrings{m.audience},
-			IssuedAt:  jwt.NewNumericDate(now),
-			NotBefore: jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(m.accessTTL)),
+			ID: uuid.New().String(), Subject: userID, Issuer: m.issuer,
+			Audience: jwt.ClaimStrings{m.audience}, IssuedAt: jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now), ExpiresAt: jwt.NewNumericDate(now.Add(m.accessTTL)),
 		},
-		SessionID: sessionID,
-		Roles:     roles,
+		SessionID: sessionID, Roles: roles,
 	}
-
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	token.Header["kid"] = currentKeyID
+	token.Header["kid"] = m.currentKeyID
 	tokenStr, err := token.SignedString(m.privateKey)
 	if err != nil {
 		return "", nil, fmt.Errorf("signing access token: %w", err)
 	}
-
 	return tokenStr, claims, nil
 }
 
-// Verify parses and validates a signed access token, returning the claims.
-// It enforces algorithm, issuer, and audience checks.
 func (m *Manager) Verify(tokenStr string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(
-		tokenStr,
-		&Claims{},
-		func(t *jwt.Token) (any, error) {
-			// Explicitly reject any algorithm other than RS256 to prevent
-			// the "algorithm confusion" attack (e.g., alg:none or HS256 with public key).
-			if t.Method != jwt.SigningMethodRS256 {
-				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-			}
+	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(t *jwt.Token) (any, error) {
+		if t.Method != jwt.SigningMethodRS256 {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
+		kid, _ := t.Header["kid"].(string)
+		switch kid {
+		case "":
+			// Backwards compatibility for tokens minted before kid was introduced.
 			return m.publicKey, nil
-		},
-		jwt.WithIssuer(m.issuer),
-		jwt.WithAudience(m.audience),
-		jwt.WithExpirationRequired(),
-	)
+		case m.currentKeyID:
+			return m.publicKey, nil
+		case m.previousKeyID:
+			if m.previousPubKey == nil {
+				return nil, fmt.Errorf("previous signing key is not configured")
+			}
+			return m.previousPubKey, nil
+		default:
+			return nil, fmt.Errorf("unknown signing key id: %q", kid)
+		}
+	}, jwt.WithIssuer(m.issuer), jwt.WithAudience(m.audience), jwt.WithExpirationRequired())
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, ErrTokenExpired
 		}
 		return nil, ErrTokenInvalid
 	}
-
 	claims, ok := token.Claims.(*Claims)
 	if !ok || !token.Valid {
 		return nil, ErrTokenInvalid
 	}
-
 	return claims, nil
 }
 
-// AccessTTL returns the configured access token time-to-live.
-func (m *Manager) AccessTTL() time.Duration {
-	return m.accessTTL
-}
+func (m *Manager) AccessTTL() time.Duration { return m.accessTTL }
+func (m *Manager) RefreshTTL() time.Duration { return m.refreshTTL }
 
-// RefreshTTL returns the configured refresh token time-to-live.
-func (m *Manager) RefreshTTL() time.Duration {
-	return m.refreshTTL
-}
-
-// ── JWKS ─────────────────────────────────────────────────────────────────────
-
-// JWKSResponse is the JSON Web Key Set served at /.well-known/jwks.json.
-// Downstream services use this to validate access tokens without contacting the auth service.
-type JWKSResponse struct {
-	Keys []JWK `json:"keys"`
-}
-
-// JWK is a JSON Web Key (RFC 7517).
+type JWKSResponse struct { Keys []JWK `json:"keys"` }
 type JWK struct {
-	Kty string `json:"kty"`  // Key type: "RSA"
-	Use string `json:"use"`  // Usage: "sig"
-	Alg string `json:"alg"`  // Algorithm: "RS256"
-	Kid string `json:"kid"`  // Key ID
-	N   string `json:"n"`    // RSA modulus (base64url)
-	E   string `json:"e"`    // RSA exponent (base64url)
+	Kty string `json:"kty"`
+	Use string `json:"use"`
+	Alg string `json:"alg"`
+	Kid string `json:"kid"`
+	N string `json:"n"`
+	E string `json:"e"`
 }
 
-// JWKS returns the public key set for this service.
-// The key ID (kid) is a fixed string; in production, rotate keys with versioned kids.
 func (m *Manager) JWKS() JWKSResponse {
-	pub := m.publicKey
-	return JWKSResponse{
-		Keys: []JWK{{
-			Kty: "RSA",
-			Use: "sig",
-			Alg: "RS256",
-			Kid: currentKeyID,
-			N:   base64URLEncode(pub.N.Bytes()),
-			E:   base64URLEncode(big.NewInt(int64(pub.E)).Bytes()),
-		}},
+	keys := []JWK{m.publicJWK(m.currentKeyID, m.publicKey)}
+	if m.previousPubKey != nil {
+		keys = append(keys, m.publicJWK(m.previousKeyID, m.previousPubKey))
 	}
+	return JWKSResponse{Keys: keys}
 }
 
-// ServeJWKS writes the JWKS JSON response to w.
+func (m *Manager) publicJWK(kid string, pub *rsa.PublicKey) JWK {
+	return JWK{Kty:"RSA", Use:"sig", Alg:"RS256", Kid:kid,
+		N:base64URLEncode(pub.N.Bytes()), E:base64URLEncode(big.NewInt(int64(pub.E)).Bytes())}
+}
+
 func (m *Manager) ServeJWKS(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "public, max-age=3600")
+	w.Header().Set("Cache-Control", "public, max-age=300")
 	if err := json.NewEncoder(w).Encode(m.JWKS()); err != nil { return }
 }
 
-func base64URLEncode(b []byte) string {
-	return base64.RawURLEncoding.EncodeToString(b)
-}
+func base64URLEncode(b []byte) string { return base64.RawURLEncoding.EncodeToString(b) }
 
-// Sentinel errors for token validation failures.
 var (
 	ErrTokenExpired = errors.New("token expired")
 	ErrTokenInvalid = errors.New("token invalid")

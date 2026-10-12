@@ -31,6 +31,9 @@ redis:
 jwt:
   private_key_path: ${JWT_PRIVATE_KEY_PATH:./certs/private.pem}
   public_key_path: ${JWT_PUBLIC_KEY_PATH:./certs/public.pem}
+  current_key_id: ${JWT_CURRENT_KEY_ID:auth-service-key-v1}
+  previous_public_key_path: ${JWT_PREVIOUS_PUBLIC_KEY_PATH:}
+  previous_key_id: ${JWT_PREVIOUS_KEY_ID:}
   access_token_ttl: ${JWT_ACCESS_TOKEN_TTL:15m}
   refresh_token_ttl: ${JWT_REFRESH_TOKEN_TTL:720h}
   issuer: ${JWT_ISSUER:auth-service}

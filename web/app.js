@@ -137,7 +137,6 @@
     const chartDesc=$(".chart-panel .panel-head p");if(chartDesc)chartDesc.textContent="Illustrative chart — the API does not currently expose aggregated activity time series.";
     const distDesc=$(".distribution .panel-head p");if(distDesc)distDesc.textContent="Illustrative distribution — aggregate role counts are not exposed by the API.";
     const subtitle=$("#pageSubtitle");if(subtitle&&state.accessToken)subtitle.textContent="Live API data is shown in the connected tables below. Clearly labelled sample widgets are illustrative.";
-    $$(".panel-head p").forEach(p=>{if(state.accessToken&&/demo/i.test(p.textContent))p.textContent=p.textContent.replace(/demo/ig,"live");});
     setConnection(true);
     const failures=[me,mySessions,roles,permissions,audit,users,mfa,healthz,health].filter(x=>x.status==="rejected").length;
     if(failures)toast("Connected with "+failures+" API view(s) unavailable. Check permissions and API routes.");

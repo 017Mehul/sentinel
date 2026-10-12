@@ -42,7 +42,10 @@ jobs:
         with:
           node-version: "22"
       - name: Validate web console JavaScript
-        run: node --check web/app.js
+        run: |
+          node --check web/app.js
+          node --check web/api-docs.js
+          node --check web/tests/connected-screenshot.mjs
       - name: Run vet
         run: go vet ./...
       - name: Run unit tests

@@ -395,7 +395,6 @@ func (s *Service) fetchUserInfo(ctx context.Context, provider string, tok *oauth
 		}
 		var res struct {
 			ID        int64  `json:"id"`
-			Email     string `json:"email"`
 			Name      string `json:"name"`
 			AvatarURL string `json:"avatar_url"`
 		}
@@ -403,40 +402,42 @@ func (s *Service) fetchUserInfo(ctx context.Context, provider string, tok *oauth
 			return nil, err
 		}
 
-		if res.Email == "" {
-			emailResp, err := client.Get("https://api.github.com/user/emails")
-			if err != nil {
-				return nil, apperrors.ErrOAuthProviderError()
-			}
-			defer emailResp.Body.Close()
-			if emailResp.StatusCode < 200 || emailResp.StatusCode >= 300 {
-				return nil, apperrors.ErrOAuthProviderError()
-			}
-			var emails []struct {
-				Email    string `json:"email"`
-				Primary  bool   `json:"primary"`
-				Verified bool   `json:"verified"`
-			}
-			if err := json.NewDecoder(emailResp.Body).Decode(&emails); err != nil {
-				return nil, apperrors.ErrOAuthProviderError()
-			}
-			for _, e := range emails {
-				if e.Primary && e.Verified {
-					res.Email = e.Email
-					break
-				}
+		// GitHub's /user response does not establish email verification.
+		// Always consult /user/emails and require a primary verified address
+		// before using email identity for account creation/linking.
+		emailResp, err := client.Get("https://api.github.com/user/emails")
+		if err != nil {
+			return nil, apperrors.ErrOAuthProviderError()
+		}
+		defer emailResp.Body.Close()
+		if emailResp.StatusCode < 200 || emailResp.StatusCode >= 300 {
+			return nil, apperrors.ErrOAuthProviderError()
+		}
+		var emails []struct {
+			Email    string `json:"email"`
+			Primary  bool   `json:"primary"`
+			Verified bool   `json:"verified"`
+		}
+		if err := json.NewDecoder(emailResp.Body).Decode(&emails); err != nil {
+			return nil, apperrors.ErrOAuthProviderError()
+		}
+
+		var email string
+		for _, e := range emails {
+			if e.Primary && e.Verified {
+				email = strings.ToLower(strings.TrimSpace(e.Email))
+				break
 			}
 		}
-		if res.Email == "" {
+		if email == "" {
 			return nil, apperrors.ErrOAuthProviderError()
 		}
 		name := res.Name
 		if name == "" {
-			name = res.Email
+			name = email
 		}
-		return &OAuthUser{ID: fmt.Sprintf("%d", res.ID), Email: res.Email, Name: name, AvatarURL: res.AvatarURL}, nil
+		return &OAuthUser{ID: fmt.Sprintf("%d", res.ID), Email: email, Name: name, AvatarURL: res.AvatarURL}, nil
 	}
-
 	return nil, apperrors.ErrNotImplemented()
 }
 

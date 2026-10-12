@@ -286,6 +286,21 @@ func validate(cfg *Config) error {
 		if cfg.Database.Password == "" || cfg.Database.Password == "changeme" {
 			errs = append(errs, "database.password must be set to a non-default value in production")
 		}
+		if cfg.Redis.Password == "" {
+			errs = append(errs, "redis.password must be configured in production")
+		}
+		if cfg.SMTP.Host == "" || cfg.SMTP.Host == "localhost" {
+			errs = append(errs, "smtp.host must point to a real mail service in production")
+		}
+		if cfg.SMTP.FromEmail == "" || strings.Contains(cfg.SMTP.FromEmail, "example.com") {
+			errs = append(errs, "smtp.from_email must be a verified sender address in production")
+		}
+		if (cfg.OAuth.Google.ClientID == "") != (cfg.OAuth.Google.ClientSecret == "") {
+			errs = append(errs, "google OAuth client ID and secret must be configured together")
+		}
+		if (cfg.OAuth.GitHub.ClientID == "") != (cfg.OAuth.GitHub.ClientSecret == "") {
+			errs = append(errs, "github OAuth client ID and secret must be configured together")
+		}
 		if cfg.OAuth.StateSecret == "" || cfg.OAuth.StateSecret == "changeme" {
 			errs = append(errs, "oauth.state_secret must be set to a non-default value in production")
 		}

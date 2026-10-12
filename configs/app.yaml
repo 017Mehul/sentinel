@@ -111,5 +111,6 @@ webhook:
 
 tls:
   enabled: ${TLS_ENABLED:false}
+  terminated_by_proxy: ${TLS_TERMINATED_BY_PROXY:false}
   cert_file: ${TLS_CERT_FILE:}
   key_file: ${TLS_KEY_FILE:}

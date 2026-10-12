@@ -146,12 +146,13 @@ docker-up:
 	$(DOCKER_COMPOSE) up --build -d
 	@echo "✔ Auth service:    http://localhost:8080"
 	@echo "✔ Jaeger UI:       http://localhost:16686"
+	@echo "✔ Mailpit UI:      http://localhost:8025"
 
 docker-down:
 	$(DOCKER_COMPOSE) down -v
 
 docker-logs:
-	$(DOCKER_COMPOSE) logs -f auth worker postgres redis migrate
+	$(DOCKER_COMPOSE) logs -f auth worker postgres redis mailpit migrate
 
 # ── Cleanup ────────────────────────────────────────────────────────────────────
 

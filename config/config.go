@@ -103,7 +103,8 @@ type AWSConfig struct {
 	SecretPrefix string `mapstructure:"secret_prefix"`
 }
 
-// NATSConfig is deprecated and retained for compatibility with older config consumers.\ntype NATSConfig struct {
+// NATSConfig is deprecated and retained for compatibility with older config consumers.
+type NATSConfig struct {
 	URL            string `mapstructure:"url"`
 	StreamName     string `mapstructure:"stream_name"`
 	StreamSubjects string `mapstructure:"stream_subjects"`

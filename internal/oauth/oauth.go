@@ -364,13 +364,20 @@ func (s *Service) fetchUserInfo(ctx context.Context, provider string, tok *oauth
 		}
 		defer resp.Body.Close()
 		var res struct {
-			ID      string `json:"id"`
-			Email   string `json:"email"`
-			Name    string `json:"name"`
-			Picture string `json:"picture"`
+			ID            string `json:"id"`
+			Email         string `json:"email"`
+			Name          string `json:"name"`
+			Picture       string `json:"picture"`
+			EmailVerified bool   `json:"verified_email"`
+		}
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return nil, apperrors.ErrOAuthProviderError()
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
 			return nil, err
+		}
+		if res.Email == "" || !res.EmailVerified {
+			return nil, apperrors.ErrOAuthProviderError()
 		}
 		return &OAuthUser{ID: res.ID, Email: res.Email, Name: res.Name, AvatarURL: res.Picture}, nil
 
@@ -380,6 +387,9 @@ func (s *Service) fetchUserInfo(ctx context.Context, provider string, tok *oauth
 			return nil, err
 		}
 		defer resp.Body.Close()
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return nil, apperrors.ErrOAuthProviderError()
+		}
 		var res struct {
 			ID        int64  `json:"id"`
 			Email     string `json:"email"`
@@ -391,23 +401,31 @@ func (s *Service) fetchUserInfo(ctx context.Context, provider string, tok *oauth
 		}
 
 		if res.Email == "" {
-			// Fetch primary email
 			emailResp, err := client.Get("https://api.github.com/user/emails")
-			if err == nil {
-				defer emailResp.Body.Close()
-				var emails []struct {
-					Email    string `json:"email"`
-					Primary  bool   `json:"primary"`
-					Verified bool   `json:"verified"`
-				}
-				_ = json.NewDecoder(emailResp.Body).Decode(&emails)
-				for _, e := range emails {
-					if e.Primary {
-						res.Email = e.Email
-						break
-					}
+			if err != nil {
+				return nil, apperrors.ErrOAuthProviderError()
+			}
+			defer emailResp.Body.Close()
+			if emailResp.StatusCode < 200 || emailResp.StatusCode >= 300 {
+				return nil, apperrors.ErrOAuthProviderError()
+			}
+			var emails []struct {
+				Email    string `json:"email"`
+				Primary  bool   `json:"primary"`
+				Verified bool   `json:"verified"`
+			}
+			if err := json.NewDecoder(emailResp.Body).Decode(&emails); err != nil {
+				return nil, apperrors.ErrOAuthProviderError()
+			}
+			for _, e := range emails {
+				if e.Primary && e.Verified {
+					res.Email = e.Email
+					break
 				}
 			}
+		}
+		if res.Email == "" {
+			return nil, apperrors.ErrOAuthProviderError()
 		}
 		name := res.Name
 		if name == "" {

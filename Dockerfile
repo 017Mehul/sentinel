@@ -5,7 +5,7 @@ WORKDIR /src
 RUN apk add --no-cache ca-certificates git
 
 COPY go.mod ./
-RUN go mod download
+RUN go mod tidy && go mod download
 
 COPY . .
 

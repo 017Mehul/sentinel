@@ -163,7 +163,7 @@
   function setPage(p){
     const [t,sub]=titles[p]||titles.overview;
     $("#pageTitle").textContent=t; $("#pageSubtitle").textContent=sub;
-    $$$$(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.page===p));
+    $$(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.page===p));
     const overview=p==="overview";
     [$(".metrics-grid"),$(".overview-grid"),$(".tables-grid"),$(".bottom-grid")].forEach(el=>{if(el)el.hidden=!overview;});
     const live=$(".live-data-tables"); if(live){live.hidden=overview;live.querySelectorAll("article").forEach(article=>{const h=article.querySelector("h2")?.textContent||"";article.hidden=!(p==="sessions"&&h==="Active Sessions"||p==="audit"&&h==="Live Audit Events"||p==="roles"&&(h==="Backend Roles"||h==="Backend Permissions"));});}
@@ -218,7 +218,7 @@
   }
   function buildChart(){const bars=[52,64,72,82,96,88,122,108,142,128,162,149,176,156,136,112,101,88,112,82,108,67],chart=$("#activityChart");if(!chart)return;bars.forEach(v=>{const b=document.createElement("div"),s=document.createElement("i"),f=document.createElement("i"),m=document.createElement("i");b.className="bar";s.className="s";f.className="f";m.className="m";s.style.height=Math.max(20,v)+"%";f.style.height=Math.max(5,v*.14)+"%";m.style.height=Math.max(7,v*.22)+"%";b.append(s,f,m);chart.appendChild(b);});}
   document.addEventListener("DOMContentLoaded",()=>{buildChart();addDataTables();setConnection(false);
-    $(".nav-item").forEach(b=>b.addEventListener("click",()=>setPage(b.dataset.page)));
+    $$(".nav-item").forEach(b=>b.addEventListener("click",()=>setPage(b.dataset.page)));
     $$("[data-page-jump]").forEach(b=>b.addEventListener("click",()=>setPage(b.dataset.pageJump)));
     $$("[data-action]").forEach(b=>b.addEventListener("click",()=>{const a=b.dataset.action;if(a==="docs")window.open("https://github.com/017Mehul/sentinel","_blank","noopener");else if(a==="add-user")toast("User creation endpoint is not exposed by the current API.");else if(a==="revoke-current-session")revokeCurrentSession();else setPage(a)}));
     $(".select-btn")?.addEventListener("click",()=>toast("Time range filtering is not exposed by the current API."));

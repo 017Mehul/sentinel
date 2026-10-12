@@ -104,5 +104,36 @@ services:
     volumes:
       - ./certs:/app/certs:ro
 
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sentinel-worker
+    entrypoint: ["/usr/local/bin/sentinel-worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      APP_ENV: development
+      APP_NAME: sentinel
+      CONFIG_PATH: /app/configs/app.yaml
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: authdb
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      DB_SSL_MODE: disable
+      AES_ENCRYPTION_KEY: ${AES_ENCRYPTION_KEY:?Set AES_ENCRYPTION_KEY in .env}
+      SMTP_HOST: ${SMTP_HOST:-localhost}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Sentinel}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@example.com}
+      SMTP_TLS_ENABLED: ${SMTP_TLS_ENABLED:-false}
+    restart: unless-stopped
+
 volumes:
   pgdata:

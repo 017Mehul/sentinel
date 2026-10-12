@@ -62,4 +62,4 @@ This creates both `.up.sql` and `.down.sql` files. Always fill in the down migra
 
 ## Security issues
 
-Do not open a public issue for security vulnerabilities. Use GitHub's private vulnerability reporting flow from the Security tab; see SECURITY.md.
+Do not open a public issue for security vulnerabilities. Use the repository's private vulnerability reporting feature if enabled; otherwise contact the maintainer privately through an existing trusted channel. Do not disclose publicly; see SECURITY.md.

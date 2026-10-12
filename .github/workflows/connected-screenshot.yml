@@ -1,0 +1,52 @@
+name: Connected Console Screenshot
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screenshot:
+    name: Capture real connected console
+    runs-on: ubuntu-latest
+    env:
+      SENTINEL_API_BASE: ${{ secrets.SENTINEL_API_BASE }}
+      SENTINEL_DEMO_EMAIL: ${{ secrets.SENTINEL_DEMO_EMAIL }}
+      SENTINEL_DEMO_PASSWORD: ${{ secrets.SENTINEL_DEMO_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate required secrets without printing them
+        run: |
+          test -n "$SENTINEL_API_BASE"
+          test -n "$SENTINEL_DEMO_EMAIL"
+          test -n "$SENTINEL_DEMO_PASSWORD"
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install pinned Playwright
+        run: npm install --no-save playwright@1.55.0
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Serve static console
+        run: |
+          python3 -m http.server 5173 --directory web > /tmp/sentinel-web.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:5173/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/sentinel-web.log
+          exit 1
+      - name: Capture screenshot only after live login
+        run: node web/tests/connected-screenshot.mjs
+      - name: Upload connected screenshot
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sentinel-connected-console
+          path: artifacts/sentinel-connected.png
+          if-no-files-found: error

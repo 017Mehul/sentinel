@@ -69,10 +69,17 @@
     if(audit.status==="fulfilled")state.audit=value(audit,"audit_logs");
     if(me.status==="rejected")toast("Signed in, but profile could not load: "+me.reason.message);
     renderUserIdentity();renderSessions();renderAudit();renderRoles();renderPermissions();
-    const active=$(".metric-card:nth-child(2) strong");if(active)active.textContent=String(state.sessions.length);
-    const sessionCount=$(".metric-card:nth-child(1) strong");if(sessionCount&&state.user)sessionCount.textContent="1";
-    const subtitle=$("#pageSubtitle");if(subtitle&&state.accessToken)subtitle.textContent="Live data from the connected Sentinel API. Some views require administrator permissions.";
-    $$(".panel-head p").forEach(p=>{if(state.accessToken&&/demo/i.test(p.textContent))p.textContent=p.textContent.replace(/demo/ig,"live");});
+    const cards=$(".metric-card");
+    if(cards[0]){const label=cards[0].querySelector(".metric-label"),value=cards[0].querySelector("strong"),note=cards[0].querySelector("small");if(label)label.textContent="Signed-in Identity";if(value)value.textContent=state.user?"1":"—";if(note)note.innerHTML="Authenticated <em>current account only</em>";}
+    if(cards[1]){const label=cards[1].querySelector(".metric-label"),value=cards[1].querySelector("strong"),note=cards[1].querySelector("small");if(label)label.textContent="My Active Sessions";if(value)value.textContent=String(state.sessions.length);if(note)note.innerHTML="From API <em>visible to this account</em>";}
+    if(cards[2]){const label=cards[2].querySelector(".metric-label"),value=cards[2].querySelector("strong"),note=cards[2].querySelector("small");if(label)label.textContent="Failure Events Loaded";if(value)value.textContent=String(state.audit.filter(a=>/fail|denied|blocked/i.test(a.action||"")).length);if(note)note.innerHTML="Audit sample <em>not a time-series total</em>";}
+    if(cards[3]){const label=cards[3].querySelector(".metric-label"),value=cards[3].querySelector("strong"),note=cards[3].querySelector("small");if(label)label.textContent="MFA Adoption";if(value)value.textContent="N/A";if(note)note.textContent="API status endpoint not available";}
+    const userHead=$(".tables-grid .table-panel .panel-head h2");if(userHead)userHead.textContent="Sample Users (Not Live)";
+    const auditHeads=$(".tables-grid .table-panel .panel-head h2");if(auditHeads[1])auditHeads[1].textContent="Sample Security Events (Not Live)";
+    const chartDesc=$(".chart-panel .panel-head p");if(chartDesc)chartDesc.textContent="Illustrative chart — the API does not currently expose aggregated activity time series.";
+    const distDesc=$(".distribution .panel-head p");if(distDesc)distDesc.textContent="Illustrative distribution — an admin user-directory endpoint is not yet available.";
+    const subtitle=$("#pageSubtitle");if(subtitle&&state.accessToken)subtitle.textContent="Live API data is shown in the connected tables below. Clearly labelled sample widgets are illustrative.";
+    $(".panel-head p").forEach(p=>{if(state.accessToken&&/demo/i.test(p.textContent))p.textContent=p.textContent.replace(/demo/ig,"live");});
     setConnection(true);
     const failures=[me,sessions,roles,permissions,audit].filter(x=>x.status==="rejected").length;
     if(failures)toast("Connected with "+failures+" API view(s) unavailable. Check permissions and API routes.");

@@ -40,4 +40,4 @@ Administrative endpoints require admin privileges enforced by the backend. The c
 - The console cannot create new users because the backend does not currently expose an admin user-creation endpoint.
 - A connected screenshot is captured only by the manual Connected Console Screenshot workflow after successful login against a real API; no screenshot is fabricated or represented as live before that run.
 
-See the repository root README, docs/api/openapi.yaml, docs/architecture.md, docs/threat-model.md, docs/demo.md, and SECURITY.md.
+Open the interactive API reference at api-docs.html. The spec is in openapi.yaml and docs/api/openapi.yaml. See the repository root README, docs/architecture.md, docs/threat-model.md, docs/demo.md, and SECURITY.md.

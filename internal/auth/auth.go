@@ -717,7 +717,7 @@ func (h *Handler) RevokeCurrentSession(c *gin.Context) {
 	// leave an access token usable because cache invalidation was ignored.
 	if h.svc.cache != nil {
 		if err := h.svc.cache.Delete(c.Request.Context(), "session:"+sid); err != nil {
-			response.Error(c, apperrors.ErrServiceUnavailable("session store unavailable"))
+			response.Error(c, apperrors.ErrServiceUnavailable())
 			return
 		}
 	}

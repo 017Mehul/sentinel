@@ -86,8 +86,8 @@
     body.innerHTML=state.permissions.length?state.permissions.map(p=>'<tr><td><b>'+esc(p.name)+'</b></td><td>'+esc(p.resource)+'</td><td>'+esc(p.action)+'</td><td>'+esc(p.description||"—")+'</td></tr>').join(""):'<tr><td colspan="4">No permission data available.</td></tr>';
   }
   async function loadLiveData() {
-    const [me,sessions,roles,permissions,audit,users,mfa,health,version]=await Promise.allSettled([
-      request("/api/v1/users/me"),request("/api/v1/admin/sessions"),request("/api/v1/admin/roles"),request("/api/v1/admin/permissions"),request("/api/v1/admin/audit-logs"),request("/api/v1/admin/users?page=1&page_size=100"),request("/api/v1/mfa/status"),request("/ready"),request("/version")
+    const [me,mySessions,adminSessions,roles,permissions,audit,users,mfa,health,version]=await Promise.allSettled([
+      request("/api/v1/users/me"),request("/api/v1/sessions"),request("/api/v1/admin/sessions"),request("/api/v1/admin/roles"),request("/api/v1/admin/permissions"),request("/api/v1/admin/audit-logs"),request("/api/v1/admin/users?page=1&page_size=100"),request("/api/v1/mfa/status"),request("/ready"),request("/version")
     ]);
     const value=(result,key)=>result.status==="fulfilled"?(result.value[key]??result.value):[];
     if(me.status==="fulfilled")state.user=me.value.user||me.value;

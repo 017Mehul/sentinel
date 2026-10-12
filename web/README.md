@@ -15,7 +15,7 @@ Open http://localhost:5173. In a separate terminal, start the API stack with Doc
 ## API connection
 
 - Select **Connect API** and use http://localhost:8080 for local development.
-- In production, set the HTTPS API origin in config.js and set SENTINEL_ALLOW_API_URL_OVERRIDE to false. The API URL is then read-only. Do not place secrets in config.js.
+- For Vercel production, set the project environment variable SENTINEL_API_BASE to the backend HTTPS origin. The build fails if it is missing or invalid, generates dist/config.js with the origin fixed and URL override disabled, and copies only static assets into dist. The API origin is public configuration, not a secret. Do not hand-edit config.js for production.
 - The API must allow the exact console origin in CORS and allow credentials for production refresh cookies.
 - Access tokens stay in memory. Production refresh tokens use a Secure HttpOnly cookie and a separate CSRF cookie; refresh/logout send the in-memory CSRF token in X-CSRF-Token.
 - The UI does not write tokens to localStorage or sessionStorage.

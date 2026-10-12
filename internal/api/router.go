@@ -247,9 +247,40 @@ func (r *Router) authMiddleware() gin.HandlerFunc {
 			}
 		}
 
+		roles := claims.Roles
+		if r.db != nil {
+			rows, err := r.db.Query(c.Request.Context(), `
+				SELECT r.name
+				FROM user_roles ur
+				JOIN roles r ON r.id = ur.role_id
+				WHERE ur.user_id = $1
+				ORDER BY r.name`, claims.Subject)
+			if err != nil {
+				response.Error(c, apperrors.ErrServiceUnavailable("authorization store unavailable"))
+				c.Abort()
+				return
+			}
+			defer rows.Close()
+			roles = make([]string, 0, 4)
+			for rows.Next() {
+				var role string
+				if err := rows.Scan(&role); err != nil {
+					response.Error(c, apperrors.ErrServiceUnavailable("authorization store unavailable"))
+					c.Abort()
+					return
+				}
+				roles = append(roles, role)
+			}
+			if err := rows.Err(); err != nil {
+				response.Error(c, apperrors.ErrServiceUnavailable("authorization store unavailable"))
+				c.Abort()
+				return
+			}
+		}
+
 		c.Set(string(contextkeys.UserID), claims.Subject)
 		c.Set(string(contextkeys.SessionID), claims.SessionID)
-		c.Set(string(contextkeys.UserRoles), claims.Roles)
+		c.Set(string(contextkeys.UserRoles), roles)
 		c.Next()
 	}
 }

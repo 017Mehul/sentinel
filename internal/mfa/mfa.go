@@ -259,6 +259,17 @@ func (s *Service) Enabled(ctx context.Context, userID string) (bool, error) {
 	return secret.IsEnabled, nil
 }
 
+func (s *Service) Status(ctx context.Context, userID string) (enabled, configured bool, err error) {
+	secret, err := s.repo.GetSecret(ctx, nil, userID)
+	if err != nil {
+		if ae := apperrors.AsAppError(err); ae != nil && ae.Code == apperrors.CodeMFANotEnabled {
+			return false, false, nil
+		}
+		return false, false, err
+	}
+	return secret.IsEnabled, true, nil
+}
+
 func (s *Service) Enable(ctx context.Context, userID, code string) error {
 	tx, err := s.repo.beginTx(ctx)
 	if err != nil {
@@ -348,12 +359,12 @@ func (h *Handler) Status(c *gin.Context) {
 		response.Error(c, apperrors.ErrForbidden())
 		return
 	}
-	enabled, err := h.svc.Enabled(c.Request.Context(), fmt.Sprint(userID))
+	enabled, configured, err := h.svc.Status(c.Request.Context(), fmt.Sprint(userID))
 	if err != nil {
 		response.Error(c, err)
 		return
 	}
-	response.OK(c, gin.H{"enabled": enabled, "configured": enabled})
+	response.OK(c, gin.H{"enabled": enabled, "configured": configured})
 }
 
 func (h *Handler) Setup(c *gin.Context) {

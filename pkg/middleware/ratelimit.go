@@ -21,7 +21,16 @@ func RateLimiter(c *cache.Client, rpm int, window time.Duration, keyPrefix strin
 
 func rateLimiter(c *cache.Client, rpm int, window time.Duration, keyPrefix string, failClosed bool) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if c == nil || rpm <= 0 {
+		if rpm <= 0 {
+			ctx.Next()
+			return
+		}
+		if c == nil {
+			if failClosed {
+				response.Error(ctx, apperrors.ErrServiceUnavailable("rate limit store unavailable"))
+				ctx.Abort()
+				return
+			}
 			ctx.Next()
 			return
 		}

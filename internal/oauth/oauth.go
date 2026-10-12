@@ -340,21 +340,25 @@ func (s *Service) issueOAuthSession(ctx context.Context, tx dbTX, u user.User, r
 		"family_id": familyID,
 		"roles":     roles,
 	})
-	_, _ = tx.Exec(ctx, `
+	if _, err := tx.Exec(ctx, `
 		INSERT INTO audit_logs (id, user_id, action, resource, resource_id, metadata, ip_address, user_agent)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		uuid.NewString(), u.ID, "auth.oauth_login", "session", finalSessionID,
 		auditMeta, ipAddress, userAgent,
-	)
+	); err != nil {
+		return nil, fmt.Errorf("writing OAuth audit log: %w", err)
+	}
 
 	if s.cache != nil {
-		_ = s.cache.SetJSON(ctx, "session:"+finalSessionID, map[string]any{
+		if err := s.cache.SetJSON(ctx, "session:"+finalSessionID, map[string]any{
 			"user_id":          u.ID,
 			"refresh_token_id": refreshID,
 			"family_id":        familyID,
 			"action":           "oauth",
 			"roles":            roles,
-		}, s.tokens.RefreshTTL())
+		}, s.tokens.RefreshTTL()); err != nil {
+			return nil, fmt.Errorf("creating OAuth session cache: %w", err)
+		}
 	}
 
 	return &AuthResponse{

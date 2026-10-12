@@ -237,3 +237,16 @@ make clean             remove build artifacts
 ## License
 
 [MIT](LICENSE)
+
+## JWT key rotation
+
+Sentinel supports overlapping JWT signing keys so tokens issued before a rotation remain verifiable during the migration window.
+
+1. Generate a new RSA key pair (2048 bits or stronger).
+2. Deploy the new private/public key as `JWT_PRIVATE_KEY_PATH` and `JWT_PUBLIC_KEY_PATH`.
+3. Set a new `JWT_CURRENT_KEY_ID` value.
+4. Move the previous public key to the path configured by `JWT_PREVIOUS_PUBLIC_KEY_PATH` and set `JWT_PREVIOUS_KEY_ID` to the old key ID.
+5. Restart Sentinel. New access tokens use the new `kid`; the previous public key remains accepted for verification.
+6. After the maximum access-token lifetime has elapsed, remove the previous-key settings and deploy again.
+
+Keep private keys out of source control and restrict their filesystem permissions. In production, Sentinel rejects missing JWT key files and weak RSA keys.

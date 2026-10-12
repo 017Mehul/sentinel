@@ -211,7 +211,7 @@ func corsMiddleware(cfg *config.Config) gin.HandlerFunc {
 				}
 			}
 		}
-		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID")
+		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID, X-CSRF-Token")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
 		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)

@@ -4,7 +4,7 @@
 [![Go Version](https://img.shields.io/badge/go-1.26-blue)](https://golang.org/dl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A full authentication microservice built in Go. I started this to get a proper understanding of auth flows — JWTs, refresh token rotation, MFA, OAuth — by actually building them rather than dropping in a library.
+Sentinel is a production-oriented Identity & Access Management (IAM) platform built in Go. It combines authentication, session security, MFA, OAuth, RBAC, audit logging, and operational tooling behind a documented API and a connected web console.
 
 It covers most of what you'd need in a real app: register/login, email verification, password reset, TOTP-based MFA, Google and GitHub OAuth, RBAC, sessions, and some infrastructure stuff like rate limiting and webhook delivery.
 
@@ -239,7 +239,11 @@ make clean             remove build artifacts
 
 ---
 
-## Deployment reference\n\n`docker-compose.production.yml` documents the API and outbox worker behind a trusted TLS-terminating proxy, using externally managed PostgreSQL and TLS-enabled Redis. It does not provision a cloud database, Redis instance, domain, OAuth credentials, or SMTP provider. See `docs/demo.md` for required secrets and deployment constraints.\n\n## License
+## Deployment reference
+
+`docker-compose.production.yml` documents the API and outbox worker behind a trusted TLS-terminating proxy, using externally managed PostgreSQL and TLS-enabled Redis. It does not provision a cloud database, Redis instance, domain, OAuth credentials, or SMTP provider. See `docs/demo.md` for required secrets and deployment constraints.
+
+## License
 
 [MIT](LICENSE)
 

@@ -31,6 +31,8 @@ type TokenPair struct {
 	ExpiresIn    int    // access token TTL in seconds
 }
 
+const currentKeyID = "auth-service-key-v1"
+
 // Manager handles RS256 JWT signing and verification.
 // The private key is loaded once at startup from the Secrets Manager.
 type Manager struct {
@@ -134,7 +136,9 @@ func (m *Manager) IssueAccessToken(userID, sessionID string, roles []string) (st
 		Roles:     roles,
 	}
 
-	tokenStr, err := jwt.NewWithClaims(jwt.SigningMethodRS256, claims).SignedString(m.privateKey)
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = currentKeyID
+	tokenStr, err := token.SignedString(m.privateKey)
 	if err != nil {
 		return "", nil, fmt.Errorf("signing access token: %w", err)
 	}
@@ -212,7 +216,7 @@ func (m *Manager) JWKS() JWKSResponse {
 			Kty: "RSA",
 			Use: "sig",
 			Alg: "RS256",
-			Kid: "auth-service-key-v1",
+			Kid: currentKeyID,
 			N:   base64URLEncode(pub.N.Bytes()),
 			E:   base64URLEncode(big.NewInt(int64(pub.E)).Bytes()),
 		}},

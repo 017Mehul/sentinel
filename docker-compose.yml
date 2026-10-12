@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: auth-postgres
+    container_name: sentinel-postgres
     environment:
       POSTGRES_DB: authdb
       POSTGRES_USER: postgres
@@ -18,7 +18,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: auth-redis
+    container_name: sentinel-redis
     ports:
       - "6379:6379"
     healthcheck:
@@ -29,7 +29,7 @@ services:
 
   jaeger:
     image: jaegertracing/all-in-one:1.50
-    container_name: auth-jaeger
+    container_name: sentinel-jaeger
     ports:
       - "16686:16686"
       - "4317:4317"
@@ -44,7 +44,7 @@ services:
 
   migrate:
     image: migrate/migrate:v4.18.1
-    container_name: auth-migrate
+    container_name: sentinel-migrate
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,7 +57,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: auth-service
+    container_name: sentinel-api
     depends_on:
       postgres:
         condition: service_healthy
@@ -128,6 +128,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      mailpit:
+        condition: service_started
       migrate:
         condition: service_completed_successfully
     environment:

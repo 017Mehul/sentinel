@@ -34,6 +34,14 @@ services:
       - "16686:16686"
       - "4317:4317"
 
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: sentinel-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
+
   migrate:
     image: migrate/migrate:v4.18.1
     container_name: auth-migrate
@@ -55,6 +63,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mailpit:
+        condition: service_started
       migrate:
         condition: service_completed_successfully
     ports:
@@ -76,6 +86,11 @@ services:
       REDIS_ADDR: redis:6379
       REDIS_PASSWORD: ""
       REDIS_DB: 0
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_TLS_ENABLED: "false"
+      SMTP_FROM_NAME: Sentinel
+      SMTP_FROM_EMAIL: noreply@sentinel.local
       JWT_PRIVATE_KEY_PATH: /app/certs/private.pem
       JWT_PUBLIC_KEY_PATH: /app/certs/public.pem
       JWT_ACCESS_TOKEN_TTL: 15m
@@ -126,13 +141,13 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
       DB_SSL_MODE: disable
       AES_ENCRYPTION_KEY: ${AES_ENCRYPTION_KEY:?Set AES_ENCRYPTION_KEY in .env}
-      SMTP_HOST: ${SMTP_HOST:-localhost}
-      SMTP_PORT: ${SMTP_PORT:-1025}
-      SMTP_USERNAME: ${SMTP_USERNAME:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Sentinel}
-      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@example.com}
-      SMTP_TLS_ENABLED: ${SMTP_TLS_ENABLED:-false}
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_USERNAME: ""
+      SMTP_PASSWORD: ""
+      SMTP_FROM_NAME: Sentinel
+      SMTP_FROM_EMAIL: noreply@sentinel.local
+      SMTP_TLS_ENABLED: "false"
     restart: unless-stopped
 
 volumes:

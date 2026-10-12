@@ -20,6 +20,7 @@ database:
 
 redis:
   addr: ${REDIS_ADDR:localhost:6379}
+  tls_enabled: ${REDIS_TLS_ENABLED:false}
   password: ${REDIS_PASSWORD:}
   db: ${REDIS_DB:0}
   pool_size: ${REDIS_POOL_SIZE:10}

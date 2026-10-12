@@ -1,15 +1,38 @@
 (() => {
   "use strict";
-  const state = { base: (window.SENTINEL_API_BASE || "").replace(/\/$/, ""), accessToken: "", refreshToken: "", user: null, roles: [], sessions: [], audit: [], permissions: [] };
+  const state = { base: (window.SENTINEL_API_BASE || "").replace(/\/$/, ""), accessToken: "", refreshToken: "", user: null, roles: [], sessions: [], audit: [], permissions: [], rolesData: [], users: [], mfa: {enabled:false,configured:false}, health: null, refreshing: null };
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => [...document.querySelectorAll(s)];
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
   const relative = (value) => { if (!value) return "—"; const d = new Date(value); if (Number.isNaN(d.getTime())) return esc(value); const m = Math.max(0, Math.floor((Date.now()-d.getTime())/60000)); return m < 1 ? "just now" : m < 60 ? m+"m ago" : m < 1440 ? Math.floor(m/60)+"h ago" : Math.floor(m/1440)+"d ago"; };
   function toast(message) { const el=$("#toast"); if (!el) return; el.textContent=message; el.classList.add("show"); clearTimeout(window.__toast); window.__toast=setTimeout(()=>el.classList.remove("show"),3000); }
-  async function request(path, options={}) {
+  async function refreshAccessToken() {
+    if (state.refreshing) return state.refreshing;
+    if (!state.base || (!state.refreshToken && !window.SENTINEL_API_BASE)) return false;
+    state.refreshing = (async () => {
+      try {
+        const options = { method:"POST", credentials:"include", headers:{Accept:"application/json"} };
+        if (state.refreshToken) { options.headers["Content-Type"]="application/json"; options.body=JSON.stringify({refresh_token:state.refreshToken}); }
+        const res = await fetch(state.base+"/api/v1/auth/refresh",options);
+        const text = await res.text(); const body = text ? JSON.parse(text) : {};
+        const payload = body.data ?? body.result ?? body;
+        if (!res.ok || !payload.access_token) return false;
+        state.accessToken=payload.access_token;
+        state.refreshToken=payload.refresh_token||state.refreshToken;
+        return true;
+      } catch { return false; }
+      finally { state.refreshing=null; }
+    })();
+    return state.refreshing;
+  }
+  async function request(path, options={}, retried=false) {
     if (!state.base) throw new Error("Set the Sentinel API base URL first.");
     const headers = { Accept:"application/json", ...(options.body ? {"Content-Type":"application/json"} : {}), ...(state.accessToken ? {Authorization:"Bearer "+state.accessToken} : {}), ...(options.headers||{}) };
-    const res = await fetch(state.base+path,{...options,headers});
+    const res = await fetch(state.base+path,{...options,headers,credentials:"include"});
+    if (res.status===401 && !retried && state.accessToken && path!=="/api/v1/auth/login" && path!=="/api/v1/auth/refresh") {
+      if (await refreshAccessToken()) return request(path,options,true);
+      state.accessToken=""; state.refreshToken=""; state.user=null;
+    }
     const text = await res.text(); let body={}; try { body=text ? JSON.parse(text) : {}; } catch { body={message:text}; }
     if (!res.ok) throw new Error(body.message || body.error?.message || body.error || ("Request failed ("+res.status+")"));
     return body.data ?? body.result ?? body;
@@ -20,7 +43,7 @@
     d.innerHTML='<form method="dialog" class="connect-form"><button class="dialog-close" aria-label="Close">×</button><p class="eyebrow">SENTINEL API</p><h2>Connect security console</h2><p>Sign in to your running Sentinel API. Your access token stays in memory and is cleared when this page is refreshed.</p><label>API base URL<input id="apiBaseInput" type="url" required placeholder="http://localhost:8080" value="'+esc(state.base)+'"></label><label>Email<input id="apiEmail" type="email" required autocomplete="username" placeholder="admin@example.com"></label><label>Password<input id="apiPassword" type="password" required autocomplete="current-password"></label><label>Authenticator code <span>(if MFA is enabled)</span><input id="apiMfa" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"></label><p class="form-error" id="connectError" role="alert"></p><button class="primary-btn" id="connectSubmit" value="connect">Sign in securely</button><small>Tokens are not written to localStorage or sessionStorage.</small></form>';
     document.body.append(d); d.showModal();
     $("#connectSubmit").addEventListener("click",async e=>{e.preventDefault(); const btn=$("#connectSubmit"),err=$("#connectError"); btn.disabled=true;btn.textContent="Connecting…";err.textContent="";
-      try { state.base=$("#apiBaseInput").value.trim().replace(/\/$/,""); const login=await request("/api/v1/auth/login",{method:"POST",body:JSON.stringify({email:$("#apiEmail").value.trim(),password:$("#apiPassword").value,mfa_code:$("#apiMfa").value.trim()})}); if(!login.access_token) throw new Error("Login succeeded but the API did not return an access token. Check whether production mode suppresses tokens."); state.accessToken=login.access_token;state.refreshToken=login.refresh_token||"";state.user=login.user||null;state.roles=login.roles||[];d.close();d.remove();await loadLiveData();toast("Connected to Sentinel API."); }
+      try { state.base=$("#apiBaseInput").value.trim().replace(/\/$/,""); const apiURL=new URL(state.base); if(!/^https?:$/.test(apiURL.protocol)) throw new Error("Use an HTTP(S) API URL."); if(apiURL.protocol!=="https:" && !["localhost","127.0.0.1"].includes(apiURL.hostname)) throw new Error("HTTPS is required except for localhost development."); const login=await request("/api/v1/auth/login",{method:"POST",body:JSON.stringify({email:$("#apiEmail").value.trim(),password:$("#apiPassword").value,mfa_code:$("#apiMfa").value.trim()})}); if(!login.access_token) throw new Error("No access token was returned. The API must return a short-lived access token and keep refresh tokens in HttpOnly cookies."); state.accessToken=login.access_token;state.refreshToken=login.refresh_token||"";state.user=login.user||null;state.roles=login.roles||[];d.close();d.remove();await loadLiveData();toast("Connected to Sentinel API."); }
       catch(ex){err.textContent=ex.message;btn.disabled=false;btn.textContent="Sign in securely";}
     });
     d.addEventListener("close",()=>d.remove(),{once:true});
@@ -30,7 +53,7 @@
     let b=$("#connectButton"); if(!b){b=document.createElement("button");b.id="connectButton";b.className="connect-button";$(".top-actions")?.prepend(b);b.addEventListener("click",()=>state.accessToken ? disconnect() : showConnectDialog());}
     b.textContent=connected?"Disconnect":"Connect API";
   }
-  function disconnect(){state.accessToken="";state.refreshToken="";state.user=null;state.roles=[];state.sessions=[];state.audit=[];state.permissions=[];toast("API disconnected. No tokens were persisted.");setTimeout(()=>window.location.reload(),350);}
+  function disconnect(){state.accessToken="";state.refreshToken="";state.user=null;state.roles=[];state.sessions=[];state.audit=[];state.permissions=[];state.rolesData=[];state.users=[];state.mfa={enabled:false,configured:false};state.health=null;toast("API disconnected. No tokens were persisted.");setTimeout(()=>window.location.reload(),350);}
   function renderUserIdentity() {
     const u=state.user;if(!u)return;
     const name=u.full_name||u.email||"Authenticated user";
@@ -63,15 +86,15 @@
     body.innerHTML=state.permissions.length?state.permissions.map(p=>'<tr><td><b>'+esc(p.name)+'</b></td><td>'+esc(p.resource)+'</td><td>'+esc(p.action)+'</td><td>'+esc(p.description||"—")+'</td></tr>').join(""):'<tr><td colspan="4">No permission data available.</td></tr>';
   }
   async function loadLiveData() {
-    const [me,sessions,roles,permissions,audit]=await Promise.allSettled([
-      request("/api/v1/users/me"),request("/api/v1/sessions"),request("/api/v1/admin/roles"),request("/api/v1/admin/permissions"),request("/api/v1/admin/audit-logs")
+    const [me,sessions,roles,permissions,audit,users,mfa,health,version]=await Promise.allSettled([
+      request("/api/v1/users/me"),request("/api/v1/admin/sessions"),request("/api/v1/admin/roles"),request("/api/v1/admin/permissions"),request("/api/v1/admin/audit-logs"),request("/api/v1/admin/users?page=1&page_size=100"),request("/api/v1/mfa/status"),request("/ready"),request("/version")
     ]);
     const value=(result,key)=>result.status==="fulfilled"?(result.value[key]??result.value):[];
     if(me.status==="fulfilled")state.user=me.value.user||me.value;
     if(sessions.status==="fulfilled")state.sessions=value(sessions,"sessions");
     if(roles.status==="fulfilled")state.rolesData=value(roles,"roles");
     if(permissions.status==="fulfilled")state.permissions=value(permissions,"permissions");
-    if(audit.status==="fulfilled")state.audit=value(audit,"audit_logs");
+    if(audit.status==="fulfilled")state.audit=value(audit,"audit_logs");\n    if(users.status==="fulfilled")state.users=value(users,"users");\n    if(mfa.status==="fulfilled")state.mfa={enabled:!!mfa.value.enabled,configured:!!mfa.value.configured};\n    if(health.status==="fulfilled")state.health={ready:true,version:version.status==="fulfilled"?version.value:null}; else state.health={ready:false};
     if(me.status==="rejected")toast("Signed in, but profile could not load: "+me.reason.message);
     renderUserIdentity();renderSessions();renderAudit();renderRoles();renderPermissions();
     const cards=$(".metric-card");
@@ -86,7 +109,7 @@
     const subtitle=$("#pageSubtitle");if(subtitle&&state.accessToken)subtitle.textContent="Live API data is shown in the connected tables below. Clearly labelled sample widgets are illustrative.";
     $(".panel-head p").forEach(p=>{if(state.accessToken&&/demo/i.test(p.textContent))p.textContent=p.textContent.replace(/demo/ig,"live");});
     setConnection(true);
-    const failures=[me,sessions,roles,permissions,audit].filter(x=>x.status==="rejected").length;
+    const failures=[me,sessions,roles,permissions,audit,users,mfa,health].filter(x=>x.status==="rejected").length;
     if(failures)toast("Connected with "+failures+" API view(s) unavailable. Check permissions and API routes.");
   }
   const titles={overview:["Security Overview","Monitor your identity and access infrastructure in real time."],users:["Users","Identity data available through the current API permissions."],roles:["Roles & Permissions","Database-backed roles and permissions returned by Sentinel."],sessions:["Sessions","Active sessions returned for the signed-in identity."],audit:["Audit Logs","Recent audit events recorded by the Sentinel backend."],authentication:["Authentication","Password-based login and JWT-backed API access."],mfa:["Multi-Factor Authentication","Configure TOTP using the authenticated MFA endpoints."],oauth:["OAuth Providers","Google and GitHub OAuth login routes exposed by the backend."],security:["Security","Health, readiness and API security controls."],settings:["Settings","API connection and session controls."]};

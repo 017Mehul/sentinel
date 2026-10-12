@@ -285,16 +285,16 @@ func validate(cfg *Config) error {
 	}
 
 	if cfg.IsProduction() {
-		if cfg.Database.Password == "" || cfg.Database.Password == "changeme" {
+		if len(cfg.Database.Password) < 24 || strings.Contains(strings.ToLower(cfg.Database.Password), "changeme") {
 			errs = append(errs, "database.password must be set to a non-default value in production")
 		}
-		if cfg.Redis.Password == "" {
+		if len(cfg.Redis.Password) < 16 || strings.Contains(strings.ToLower(cfg.Redis.Password), "changeme") {
 			errs = append(errs, "redis.password must be configured in production")
 		}
 		if !cfg.Redis.TLSEnabled {
 			errs = append(errs, "redis.tls_enabled must be true in production")
 		}
-		if strings.EqualFold(cfg.Database.SSLMode, "disable") || cfg.Database.SSLMode == "" {
+		if !containsString([]string{"require", "verify-ca", "verify-full"}, strings.ToLower(cfg.Database.SSLMode)) {
 			errs = append(errs, "database.ssl_mode must require TLS in production")
 		}
 		if cfg.SMTP.Host == "" || cfg.SMTP.Host == "localhost" {
@@ -309,7 +309,7 @@ func validate(cfg *Config) error {
 		if (cfg.OAuth.GitHub.ClientID == "") != (cfg.OAuth.GitHub.ClientSecret == "") {
 			errs = append(errs, "github OAuth client ID and secret must be configured together")
 		}
-		if cfg.OAuth.StateSecret == "" || cfg.OAuth.StateSecret == "changeme" {
+		if len(cfg.OAuth.StateSecret) < 32 || strings.Contains(strings.ToLower(cfg.OAuth.StateSecret), "changeme") {
 			errs = append(errs, "oauth.state_secret must be set to a non-default value in production")
 		}
 		if cfg.Security.AESEncryptionKey == "" || strings.Contains(cfg.Security.AESEncryptionKey, "changeme") {
@@ -339,7 +339,7 @@ func validate(cfg *Config) error {
 		}
 		for _, origin := range cfg.CORS.AllowedOrigins {
 			parsed, err := url.Parse(origin)
-			if origin == "*" || err != nil || parsed == nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil {
+			if origin == "*" || err != nil || parsed == nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || (parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.Fragment != "" {
 				errs = append(errs, "cors.allowed_origins must contain explicit HTTPS origins (wildcards are forbidden) in production")
 				break
 			}
@@ -351,6 +351,8 @@ func validate(cfg *Config) error {
 	}
 	return nil
 }
+
+func containsString(values []string, candidate string) bool { for _, value := range values { if value == candidate { return true } }; return false }
 
 // IsDevelopment returns true when running in local development mode.
 func (c *Config) IsDevelopment() bool {

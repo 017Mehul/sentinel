@@ -179,6 +179,7 @@ type WebhookConfig struct {
 
 type TLSConfig struct {
 	Enabled  bool   `mapstructure:"enabled"`
+	TerminatedByProxy bool `mapstructure:"terminated_by_proxy"`
 	CertFile string `mapstructure:"cert_file"`
 	KeyFile  string `mapstructure:"key_file"`
 }
@@ -320,8 +321,11 @@ func validate(cfg *Config) error {
 		if cfg.JWT.PreviousPublicKeyPath != "" && cfg.JWT.PreviousKeyID == "" {
 			errs = append(errs, "jwt.previous_key_id must be set when previous public key is configured")
 		}
-		if !cfg.TLS.Enabled {
-			errs = append(errs, "tls.enabled must be true in production")
+		if !cfg.TLS.Enabled && !cfg.TLS.TerminatedByProxy {
+			errs = append(errs, "production requires direct TLS or TLS_TERMINATED_BY_PROXY=true behind a trusted HTTPS reverse proxy")
+		}
+		if cfg.TLS.Enabled && (cfg.TLS.CertFile == "" || cfg.TLS.KeyFile == "") {
+			errs = append(errs, "tls.cert_file and tls.key_file are required when direct TLS is enabled")
 		}
 		if len(cfg.CORS.AllowedOrigins) == 0 {
 			errs = append(errs, "cors.allowed_origins must contain at least one origin in production")

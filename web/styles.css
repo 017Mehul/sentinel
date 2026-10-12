@@ -27,3 +27,13 @@
   .feature-form { grid-template-columns: 1fr; }
   .feature-form h3, .feature-form > p, .feature-form .feature-actions, .feature-form .form-error { grid-column: auto; }
 }
+
+
+.api-docs-shell { width: min(1440px, calc(100% - 48px)); margin: 28px auto 60px; position: relative; }
+.api-docs-header { margin: 0 0 24px; padding: 24px 28px; border: 1px solid #e3ebf7; border-radius: 16px; background: rgba(255,255,255,.92); box-shadow: 0 12px 36px #18375d0b; }
+.api-docs-header a { color: #1769ff; font-size: 13px; font-weight: 700; text-decoration: none; }
+.api-docs-header h1 { margin: 16px 0 8px; color: #172b49; font: 800 28px Manrope, sans-serif; }
+.api-docs-header p { margin: 0; color: #61728b; font-size: 13px; line-height: 1.6; }
+#swagger-ui { padding: 20px 24px; border: 1px solid #e3ebf7; border-radius: 16px; background: #fff; }
+#swagger-ui .topbar { display: none; }
+@media (max-width: 700px) { .api-docs-shell { width: calc(100% - 24px); margin-top: 12px; } .api-docs-header, #swagger-ui { padding: 14px; } }

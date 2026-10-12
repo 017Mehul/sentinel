@@ -317,6 +317,12 @@ func validate(cfg *Config) error {
 		if (cfg.OAuth.GitHub.ClientID == "") != (cfg.OAuth.GitHub.ClientSecret == "") {
 			errs = append(errs, "github OAuth client ID and secret must be configured together")
 		}
+		if cfg.OAuth.Google.ClientID != "" && !isHTTPSOriginOrURL(cfg.OAuth.Google.RedirectURL) {
+			errs = append(errs, "google OAuth redirect_url must use HTTPS in production")
+		}
+		if cfg.OAuth.GitHub.ClientID != "" && !isHTTPSOriginOrURL(cfg.OAuth.GitHub.RedirectURL) {
+			errs = append(errs, "github OAuth redirect_url must use HTTPS in production")
+		}
 		if len(cfg.OAuth.StateSecret) < 32 || strings.Contains(strings.ToLower(cfg.OAuth.StateSecret), "changeme") {
 			errs = append(errs, "oauth.state_secret must be set to a non-default value in production")
 		}
@@ -358,6 +364,11 @@ func validate(cfg *Config) error {
 		return fmt.Errorf("invalid configuration:\n  - %s", strings.Join(errs, "\n  - "))
 	}
 	return nil
+}
+
+func isHTTPSOriginOrURL(value string) bool {
+	parsed, err := url.Parse(value)
+	return err == nil && parsed.Scheme == "https" && parsed.Host != "" && parsed.User == nil
 }
 
 func containsString(values []string, candidate string) bool { for _, value := range values { if value == candidate { return true } }; return false }

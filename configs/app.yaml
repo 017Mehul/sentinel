@@ -1,5 +1,5 @@
 app:
-  name: ${APP_NAME:auth-service}
+  name: ${APP_NAME:sentinel}
   env: ${APP_ENV:development}
   version: ${APP_VERSION:1.0.0}
   port: ${APP_PORT:8080}
@@ -31,12 +31,12 @@ redis:
 jwt:
   private_key_path: ${JWT_PRIVATE_KEY_PATH:./certs/private.pem}
   public_key_path: ${JWT_PUBLIC_KEY_PATH:./certs/public.pem}
-  current_key_id: ${JWT_CURRENT_KEY_ID:auth-service-key-v1}
+  current_key_id: ${JWT_CURRENT_KEY_ID:sentinel-key-v1}
   previous_public_key_path: ${JWT_PREVIOUS_PUBLIC_KEY_PATH:}
   previous_key_id: ${JWT_PREVIOUS_KEY_ID:}
   access_token_ttl: ${JWT_ACCESS_TOKEN_TTL:15m}
   refresh_token_ttl: ${JWT_REFRESH_TOKEN_TTL:720h}
-  issuer: ${JWT_ISSUER:auth-service}
+  issuer: ${JWT_ISSUER:sentinel}
   audience: ${JWT_AUDIENCE:api}
 
 secrets:
@@ -47,20 +47,14 @@ secrets:
     mount_path: ${VAULT_MOUNT_PATH:secret}
   aws:
     region: ${AWS_REGION:us-east-1}
-    secret_prefix: ${AWS_SECRET_PREFIX:auth-service/}
-
-nats:
-  url: ${NATS_URL:nats://localhost:4222}
-  stream_name: ${NATS_STREAM_NAME:AUTH}
-  stream_subjects: ${NATS_STREAM_SUBJECTS:auth.>}
-  consumer_name: ${NATS_CONSUMER_NAME:auth-consumer}
+    secret_prefix: ${AWS_SECRET_PREFIX:sentinel/}
 
 smtp:
   host: ${SMTP_HOST:localhost}
   port: ${SMTP_PORT:1025}
   username: ${SMTP_USERNAME:}
   password: ${SMTP_PASSWORD:}
-  from_name: ${SMTP_FROM_NAME:Auth Service}
+  from_name: ${SMTP_FROM_NAME:Sentinel}
   from_email: ${SMTP_FROM_EMAIL:noreply@example.com}
   tls_enabled: ${SMTP_TLS_ENABLED:false}
 
@@ -103,7 +97,7 @@ hibp:
 
 otel:
   enabled: ${OTEL_ENABLED:true}
-  service_name: ${OTEL_SERVICE_NAME:auth-service}
+  service_name: ${OTEL_SERVICE_NAME:sentinel}
   exporter_endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
   sample_ratio: ${OTEL_SAMPLE_RATIO:1.0}
 

@@ -85,6 +85,7 @@ type AuthResponse struct {
 	TokenType    string    `json:"token_type"`
 	ExpiresIn    int       `json:"expires_in"`
 	SessionID    string    `json:"session_id"`
+	CSRFToken    string    `json:"csrf_token,omitempty"`
 }
 
 type RefreshTokenRecord struct {
@@ -803,14 +804,29 @@ func (h *Handler) Login(c *gin.Context) {
 
 func (h *Handler) writeAuthResponse(c *gin.Context, resp *AuthResponse) {
 	if h.svc.isProd {
-		c.SetSameSite(http.SameSiteLaxMode)
+		csrf := uuid.NewString()
+		c.SetSameSite(http.SameSiteNoneMode)
 		c.SetCookie("sentinel_refresh", resp.RefreshToken, int(h.svc.tokens.RefreshTTL().Seconds()), "/api/v1/auth", "", true, true)
+		c.SetCookie("sentinel_csrf", csrf, int(h.svc.tokens.RefreshTTL().Seconds()), "/api/v1/auth", "", true, false)
 		resp.RefreshToken = ""
+		resp.CSRFToken = csrf
 	}
 	response.OK(c, resp)
 }
 
+func (h *Handler) validateRefreshCSRF(c *gin.Context) bool {
+	if !h.svc.isProd { return true }
+	cookie, cookieErr := c.Cookie("sentinel_csrf")
+	header := c.GetHeader("X-CSRF-Token")
+	if cookieErr != nil || cookie == "" || header == "" || subtle.ConstantTimeCompare([]byte(cookie), []byte(header)) != 1 {
+		response.Error(c, apperrors.ErrForbidden())
+		return false
+	}
+	return true
+}
+
 func (h *Handler) Refresh(c *gin.Context) {
+	if !h.validateRefreshCSRF(c) { return }
 	var req RefreshRequest
 	if c.Request.ContentLength > 0 {
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -827,6 +843,7 @@ func (h *Handler) Refresh(c *gin.Context) {
 }
 
 func (h *Handler) Logout(c *gin.Context) {
+	if !h.validateRefreshCSRF(c) { return }
 	var req LogoutRequest
 	if c.Request.ContentLength > 0 {
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -840,8 +857,9 @@ func (h *Handler) Logout(c *gin.Context) {
 		if err := h.svc.Logout(c.Request.Context(), req.RefreshToken); err != nil { response.Error(c, err); return }
 	}
 	if h.svc.isProd {
-		c.SetSameSite(http.SameSiteLaxMode)
+		c.SetSameSite(http.SameSiteNoneMode)
 		c.SetCookie("sentinel_refresh", "", -1, "/api/v1/auth", "", true, true)
+		c.SetCookie("sentinel_csrf", "", -1, "/api/v1/auth", "", true, false)
 	}
 	response.NoContent(c)
 }

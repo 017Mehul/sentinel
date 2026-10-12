@@ -602,18 +602,23 @@ func (s *Service) issueSessionWithFamily(ctx context.Context, tx dbTX, u user.Us
 		return nil, err
 	}
 
-	if err := commitTx(ctx, tx); err != nil {
-		return nil, fmt.Errorf("committing auth transaction: %w", err)
+	if s.cache != nil {
+		if err := s.cache.SetJSON(ctx, "session:"+sessionID, map[string]any{
+			"user_id":          u.ID,
+			"refresh_token_id": refreshID,
+			"family_id":        familyID,
+			"action":           action,
+			"roles":            roles,
+		}, s.tokens.RefreshTTL()); err != nil {
+			return nil, fmt.Errorf("creating session cache: %w", err)
+		}
 	}
 
-	if s.cache != nil {
-		_ = s.cache.SetJSON(ctx, "session:"+sessionID, map[string]any{
-			"user_id":          u.ID,
-			"refresh_token_id":  refreshID,
-			"family_id":         familyID,
-			"action":            action,
-			"roles":             roles,
-		}, s.tokens.RefreshTTL())
+	if err := commitTx(ctx, tx); err != nil {
+		if s.cache != nil {
+			_ = s.cache.Delete(ctx, "session:"+sessionID)
+		}
+		return nil, fmt.Errorf("committing auth transaction: %w", err)
 	}
 
 	return &AuthResponse{

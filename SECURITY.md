@@ -4,7 +4,7 @@
 
 Please do **not** open a public issue for a suspected security vulnerability.
 
-Use GitHub's private vulnerability reporting flow from the repository's **Security** tab ("Report a vulnerability") so maintainers can investigate privately. Include the affected commit or endpoint, reproducible steps, impact and prerequisites, and a suggested mitigation if known.
+Use the repository's private vulnerability reporting feature if enabled; otherwise contact the maintainer privately through an existing trusted channel. Do not disclose publicly. Include the affected commit or endpoint, reproducible steps, impact and prerequisites, and a suggested mitigation if known.
 
 Do not include real user data, live credentials, production tokens, or third-party data in a report. Test only systems you own or have explicit permission to assess.
 

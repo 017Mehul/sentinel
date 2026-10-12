@@ -250,3 +250,13 @@ Sentinel supports overlapping JWT signing keys so tokens issued before a rotatio
 6. After the maximum access-token lifetime has elapsed, remove the previous-key settings and deploy again.
 
 Keep private keys out of source control and restrict their filesystem permissions. In production, Sentinel rejects missing JWT key files and weak RSA keys.
+
+## Portfolio Web Console
+
+Sentinel includes a portfolio-facing security console in `web/`. It uses a light enterprise UI with soft blue atmospheric background washes and is intentionally dependency-light so it can be deployed independently from the Go API.
+
+The console is a **demo presentation layer**: its seeded metrics and activity are clearly marked as demo data and it never claims a production connection without explicit API configuration. The Go service remains the source of truth for authentication, sessions, MFA, RBAC and audit operations.
+
+### Preview / deploy the UI
+
+Serve `web/` as a static site or deploy the directory to a static host such as Vercel. To enable the optional health check against a running Sentinel API, define `window.SENTINEL_API_BASE` before `app.js`.

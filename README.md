@@ -253,10 +253,12 @@ Keep private keys out of source control and restrict their filesystem permission
 
 ## Portfolio Web Console
 
-Sentinel includes a portfolio-facing security console in `web/`. It uses a light enterprise UI with soft blue atmospheric background washes and is intentionally dependency-light so it can be deployed independently from the Go API.
+Sentinel includes a responsive, light enterprise security console in `web/`, designed to be deployed independently from the Go API.
 
-The console is a **demo presentation layer**: its seeded metrics and activity are clearly marked as demo data and it never claims a production connection without explicit API configuration. The Go service remains the source of truth for authentication, sessions, MFA, RBAC and audit operations.
+The console now supports signing in against the Go API and loading the current profile, active sessions, roles, permissions, and audit events from the backend. Admin-only endpoints remain protected by the API. Access and refresh tokens are held in memory only and are not persisted in browser storage.
+
+**Important:** the original overview charts and sample overview rows are illustrative presentation data, not live telemetry. The connected data tables show actual API responses. The current API does not yet provide an administrative user directory, session revocation by arbitrary session ID, MFA status listing, or OAuth provider configuration endpoints, so those are not presented as completed live controls.
 
 ### Preview / deploy the UI
 
-Serve `web/` as a static site or deploy the directory to a static host such as Vercel. To enable the optional health check against a running Sentinel API, define `window.SENTINEL_API_BASE` before `app.js`.
+Serve `web/` as a static site or deploy it to a static host. Configure the Go API's CORS allowlist for the exact frontend origin, use HTTPS, then select **Connect API** and sign in. See [web/README.md](web/README.md) for the endpoints and current limitations.

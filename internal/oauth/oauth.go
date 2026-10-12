@@ -185,8 +185,11 @@ func (s *Service) GetAuthURL(ctx context.Context, provider string) (string, erro
 		return "", err
 	}
 
-	if s.cache != nil {
-		_ = s.cache.Set(ctx, "oauth_state:"+state, provider, 10*time.Minute)
+	if s.cache == nil {
+		return "", apperrors.ErrServiceUnavailable("cache unavailable: cannot establish OAuth state")
+	}
+	if err := s.cache.Set(ctx, "oauth_state:"+state, provider, 10*time.Minute); err != nil {
+		return "", apperrors.ErrServiceUnavailable("cache unavailable: cannot establish OAuth state")
 	}
 
 	return cfg.AuthCodeURL(state, oauth2.AccessTypeOffline), nil
@@ -206,7 +209,9 @@ func (s *Service) HandleCallback(ctx context.Context, provider, code, state, ipA
 	if err != nil || storedProvider != provider {
 		return nil, apperrors.ErrOAuthStateInvalid()
 	}
-	_ = s.cache.Delete(ctx, "oauth_state:"+state)
+	if err := s.cache.Delete(ctx, "oauth_state:"+state); err != nil {
+		return nil, apperrors.ErrServiceUnavailable("cache unavailable: cannot consume OAuth state")
+	}
 
 	cfg, ok := s.configs[provider]
 	if !ok {
@@ -231,16 +236,21 @@ func (s *Service) HandleCallback(ctx context.Context, provider, code, state, ipA
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 
+	if authUser.ID == "" || strings.TrimSpace(authUser.Email) == "" {
+		return nil, apperrors.ErrOAuthProviderError()
+	}
 	acc, err := s.repo.GetAccountByProviderUserID(ctx, tx, provider, authUser.ID)
 	var targetUserID string
 
 	if err == nil {
 		targetUserID = acc.UserID
+	} else if ae := apperrors.AsAppError(err); ae == nil || ae.Code != apperrors.CodeUserNotFound {
+		return nil, fmt.Errorf("looking up oauth account: %w", err)
 	} else {
 		u, _, getErr := s.users.GetByEmail(ctx, tx, authUser.Email)
 		if getErr == nil {
 			targetUserID = u.ID
-		} else {
+		} else if ae := apperrors.AsAppError(getErr); ae != nil && ae.Code == apperrors.CodeUserNotFound {
 			// New user — create account, assign role, record first login.
 			created, createErr := s.users.Create(ctx, tx, user.CreateInput{
 				Email:     strings.ToLower(authUser.Email),
@@ -257,6 +267,8 @@ func (s *Service) HandleCallback(ctx context.Context, provider, code, state, ipA
 				return nil, err
 			}
 			targetUserID = created.ID
+		} else {
+			return nil, fmt.Errorf("looking up user by OAuth email: %w", getErr)
 		}
 		// Link provider account — must succeed atomically with user creation.
 		if err := s.repo.CreateAccount(ctx, tx, targetUserID, provider, authUser.ID, authUser.Email); err != nil {

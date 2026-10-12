@@ -45,7 +45,11 @@ jobs:
         run: |
           node --check web/app.js
           node --check web/api-docs.js
+          node --check web/build-config.mjs
           node --check web/tests/connected-screenshot.mjs
+          (cd web && SENTINEL_API_BASE=https://api.example.com node build-config.mjs)
+          test -f web/dist/index.html
+          grep -q "SENTINEL_ALLOW_API_URL_OVERRIDE = false" web/dist/config.js
       - name: Run vet
         run: go vet ./...
       - name: Run unit tests

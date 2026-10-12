@@ -173,7 +173,7 @@ make security            # gosec + govulncheck
 
 ---
 
-## Project layout
+> **Go module compatibility note:** the module path remains `github.com/MehulChamoli/auth-service` because source imports and protobuf generation options still reference it. A module-path rename is intentionally deferred until every import and generated binding can be migrated and verified together; all user-facing service, container, and binary names use Sentinel.\n\n## Project layout
 
 ```
 cmd/

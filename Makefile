@@ -184,7 +184,7 @@ help:
 	@echo "Sentinel — Available Make Targets"
 	@echo "═══════════════════════════════════════"
 	@echo "  make build          Build all binaries"
-	@echo "  make run            Build + run auth service"
+	@echo "  make run            Build + run Sentinel API"
 	@echo "  make wire           Regenerate Wire DI code"
 	@echo "  make sqlc           Regenerate sqlc query code"
 	@echo "  make proto          Regenerate protobuf code"

@@ -32,10 +32,17 @@ jobs:
           go mod tidy
           go mod download
           go mod verify
+          git diff --exit-code -- go.mod go.sum
       - name: Build all binaries
         run: |
           go build -trimpath -ldflags="-s -w" ./cmd/server
           go build -trimpath -ldflags="-s -w" ./cmd/worker
+      - name: Set up Node.js for frontend checks
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate web console JavaScript
+        run: node --check web/app.js
       - name: Run vet
         run: go vet ./...
       - name: Run unit tests
@@ -68,7 +75,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Tidy dependencies
-        run: go mod tidy
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:

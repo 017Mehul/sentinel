@@ -172,7 +172,7 @@ func securityHeadersMiddleware(cfg *config.Config) gin.HandlerFunc {
 		c.Header("Referrer-Policy", "no-referrer")
 		c.Header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		c.Header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
-		if cfg.TLS.Enabled {
+		if cfg.TLS.Enabled || cfg.TLS.TerminatedByProxy {
 			c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		}
 		c.Next()

@@ -765,7 +765,7 @@ func (h *Handler) AdminRevokeSession(c *gin.Context) {
 	}
 	if !isAdmin { response.Error(c, apperrors.ErrForbidden()); return }
 	sessionID := strings.TrimSpace(c.Param("id"))
-	if sessionID == "" { response.Error(c, apperrors.ErrTokenInvalid()); return }
+	if _, err := uuid.Parse(sessionID); err != nil { response.Error(c, apperrors.ErrTokenInvalid()); return }
 	if h.svc.cache != nil {
 		if err := h.svc.cache.Delete(c.Request.Context(), "session:"+sessionID); err != nil {
 			response.Error(c, apperrors.ErrServiceUnavailable("session store unavailable")); return

@@ -270,4 +270,4 @@ The overview does not fabricate user counts or security events. Metrics without 
 
 ### Preview / deploy the UI
 
-Serve `web/` as a static site or deploy it to a static host. Configure the Go API's CORS allowlist for the exact frontend origin, use HTTPS, then select **Connect API** and sign in. See [web/README.md](web/README.md), [the OpenAPI contract](docs/api/openapi.yaml), [architecture diagrams](docs/architecture.md), [the threat model](docs/threat-model.md), [the demo runbook](docs/demo.md), and [SECURITY.md](SECURITY.md).
+Serve `web/` as a static site or deploy it to a static host. Configure the Go API's CORS allowlist for the exact frontend origin, use HTTPS, then select **Connect API** and sign in. See [web/README.md](web/README.md) and the [interactive API reference](web/api-docs.html). The OpenAPI contract is available at [docs/api/openapi.yaml](docs/api/openapi.yaml) and in the static site as [web/openapi.yaml](web/openapi.yaml). Also see [the OpenAPI contract](docs/api/openapi.yaml), [architecture diagrams](docs/architecture.md), [the threat model](docs/threat-model.md), [the demo runbook](docs/demo.md), and [SECURITY.md](SECURITY.md).

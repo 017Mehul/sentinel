@@ -163,7 +163,7 @@
   function setPage(p){
     const [t,sub]=titles[p]||titles.overview;
     $("#pageTitle").textContent=t; $("#pageSubtitle").textContent=sub;
-    $$(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.page===p));
+    $$$(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.page===p));
     const overview=p==="overview";
     [$(".metrics-grid"),$(".overview-grid"),$(".tables-grid"),$(".bottom-grid")].forEach(el=>{if(el)el.hidden=!overview;});
     const live=$(".live-data-tables"); if(live){live.hidden=overview;live.querySelectorAll("article").forEach(article=>{const h=article.querySelector("h2")?.textContent||"";article.hidden=!(p==="sessions"&&h==="Active Sessions"||p==="audit"&&h==="Live Audit Events"||p==="roles"&&(h==="Backend Roles"||h==="Backend Permissions"));});}

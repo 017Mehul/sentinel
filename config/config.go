@@ -1,10 +1,10 @@
 package config
 
 import (
-	"os"
-	"net/url"
-	"regexp"
 	"fmt"
+	"net/url"
+	"os"
+	"regexp"
 	"strings"
 	"time"
 

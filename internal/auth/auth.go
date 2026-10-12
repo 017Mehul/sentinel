@@ -795,40 +795,52 @@ func (h *Handler) Login(c *gin.Context) {
 		response.Error(c, apperrors.NewValidation([]apperrors.FieldError{{Field: "body", Message: err.Error()}}))
 		return
 	}
-
 	resp, err := h.svc.Login(c.Request.Context(), req, clientIP(c), c.GetHeader("User-Agent"))
-	if err != nil {
-		response.Error(c, err)
-		return
+	if err != nil { response.Error(c, err); return }
+	h.writeAuthResponse(c, resp)
+}
+
+func (h *Handler) writeAuthResponse(c *gin.Context, resp *AuthResponse) {
+	if h.svc.isProd {
+		c.SetSameSite(http.SameSiteLaxMode)
+		c.SetCookie("sentinel_refresh", resp.RefreshToken, int(h.svc.tokens.RefreshTTL().Seconds()), "/api/v1/auth", "", true, true)
+		resp.RefreshToken = ""
 	}
 	response.OK(c, resp)
 }
 
 func (h *Handler) Refresh(c *gin.Context) {
 	var req RefreshRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, apperrors.NewValidation([]apperrors.FieldError{{Field: "body", Message: err.Error()}}))
-		return
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.Error(c, apperrors.NewValidation([]apperrors.FieldError{{Field: "body", Message: err.Error()}})); return
+		}
 	}
-
+	if req.RefreshToken == "" {
+		if cookie, err := c.Cookie("sentinel_refresh"); err == nil { req.RefreshToken = cookie }
+	}
+	if req.RefreshToken == "" { response.Error(c, apperrors.ErrTokenInvalid()); return }
 	resp, err := h.svc.Refresh(c.Request.Context(), req.RefreshToken, clientIP(c), c.GetHeader("User-Agent"))
-	if err != nil {
-		response.Error(c, err)
-		return
-	}
-	response.OK(c, resp)
+	if err != nil { response.Error(c, err); return }
+	h.writeAuthResponse(c, resp)
 }
 
 func (h *Handler) Logout(c *gin.Context) {
 	var req LogoutRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, apperrors.NewValidation([]apperrors.FieldError{{Field: "body", Message: err.Error()}}))
-		return
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.Error(c, apperrors.NewValidation([]apperrors.FieldError{{Field: "body", Message: err.Error()}})); return
+		}
 	}
-
-	if err := h.svc.Logout(c.Request.Context(), req.RefreshToken); err != nil {
-		response.Error(c, err)
-		return
+	if req.RefreshToken == "" {
+		if cookie, err := c.Cookie("sentinel_refresh"); err == nil { req.RefreshToken = cookie }
+	}
+	if req.RefreshToken != "" {
+		if err := h.svc.Logout(c.Request.Context(), req.RefreshToken); err != nil { response.Error(c, err); return }
+	}
+	if h.svc.isProd {
+		c.SetSameSite(http.SameSiteLaxMode)
+		c.SetCookie("sentinel_refresh", "", -1, "/api/v1/auth", "", true, true)
 	}
 	response.NoContent(c)
 }

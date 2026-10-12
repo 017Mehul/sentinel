@@ -191,7 +191,7 @@
       try{
         if(action==="mfa-setup"){state.mfaSetup=await request("/api/v1/mfa/setup",{method:"POST",body:"{}"});state.mfa=await request("/api/v1/mfa/status");renderFeaturePanel("mfa");}
         else if(action==="mfa-refresh"){state.mfa=await request("/api/v1/mfa/status");renderFeaturePanel("mfa");}
-        else if(action==="refresh-health"){const ready=await request("/ready");const version=await request("/version");state.health={ready:true,version};renderFeaturePanel("security");}
+        else if(action==="refresh-health"){await request("/healthz");await request("/ready");const version=await request("/version");state.health={live:true,ready:true,version};renderFeaturePanel("security");}
         else if(action==="oauth-google"||action==="oauth-github"){if(!state.base)throw new Error("Connect API first.");window.location.assign(state.base+"/api/v1/oauth/"+(action==="oauth-google"?"google":"github")+"/login");}
         else if(action==="logout"){const options={method:"POST"};if(state.refreshToken)options.body=JSON.stringify({refresh_token:state.refreshToken});try{await request("/api/v1/auth/logout",options);}finally{disconnect();}}
       }catch(ex){toast(ex.message||"Action failed.");}

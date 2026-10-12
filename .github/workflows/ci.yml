@@ -33,6 +33,12 @@ jobs:
           go mod download
           go mod verify
           git diff --exit-code -- go.mod go.sum
+      - name: Upload generated module checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: sentinel-go-sum
+          path: go.sum
+          if-no-files-found: error
       - name: Build all binaries
         run: |
           go build -trimpath -ldflags="-s -w" ./cmd/server

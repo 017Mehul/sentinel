@@ -85,6 +85,9 @@ func loadKeyPair(privatePath, publicPath string) (*rsa.PrivateKey, *rsa.PublicKe
 	if err != nil {
 		return nil, nil, fmt.Errorf("parsing private key: %w", err)
 	}
+	if privateKey.N.BitLen() < 2048 {
+		return nil, nil, fmt.Errorf("RSA private key must be at least 2048 bits")
+	}
 
 	if publicPath == "" {
 		return privateKey, &privateKey.PublicKey, nil
@@ -101,6 +104,12 @@ func loadKeyPair(privatePath, publicPath string) (*rsa.PrivateKey, *rsa.PublicKe
 	publicKey, err := jwt.ParseRSAPublicKeyFromPEM(pubPEM)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parsing public key: %w", err)
+	}
+	if publicKey.N.BitLen() < 2048 {
+		return nil, nil, fmt.Errorf("RSA public key must be at least 2048 bits")
+	}
+	if publicKey.E != privateKey.E || publicKey.N.Cmp(privateKey.N) != 0 {
+		return nil, nil, fmt.Errorf("RSA public key does not match private key")
 	}
 
 	return privateKey, publicKey, nil

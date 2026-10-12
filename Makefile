@@ -1,9 +1,9 @@
 .PHONY: all build run test lint wire sqlc proto migrate-up migrate-down \
-        docker-up docker-down docker-build clean gen-keys help
+        docker-up docker-down docker-reset docker-build clean gen-keys help
 
 # ── Variables ──────────────────────────────────────────────────────────────────
 BINARY_AUTH        := bin/sentinel
-BINARY_WORKER      := bin/worker
+BINARY_WORKER      := bin/sentinel-worker
 
 CMD_AUTH           := ./cmd/server
 CMD_WORKER         := ./cmd/worker
@@ -23,7 +23,7 @@ all: build
 build: build-auth build-worker
 
 build-auth:
-	@echo "▶ Building auth service..."
+	@echo "▶ Building Sentinel API..."
 	$(GO) build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BINARY_AUTH) $(CMD_AUTH)
 
 build-worker:
@@ -33,11 +33,11 @@ build-worker:
 # ── Run ────────────────────────────────────────────────────────────────────────
 
 run: build-auth
-	@echo "▶ Starting auth service..."
+	@echo "▶ Starting Sentinel API..."
 	./$(BINARY_AUTH)
 
 run-dev:
-	@echo "▶ Starting auth service (live reload)..."
+	@echo "▶ Starting Sentinel API (live reload)..."
 	air -c .air.toml
 
 run-worker: build-worker
@@ -68,7 +68,7 @@ gen-keys:
 	@echo "✔ Keys generated in ./certs/"
 
 swagger:
-	@echo "▶ Swagger generation is not configured yet"
+	@echo "▶ OpenAPI contract: docs/api/openapi.yaml"
 
 # ── Database ───────────────────────────────────────────────────────────────────
 
@@ -144,11 +144,17 @@ docker-build:
 docker-up:
 	@echo "▶ Starting full stack..."
 	$(DOCKER_COMPOSE) up --build -d
-	@echo "✔ Auth service:    http://localhost:8080"
+	@echo "✔ Sentinel API:    http://localhost:8080"
+	@echo "✔ Redis:           localhost:6379"
+	@echo "✔ gRPC:            localhost:9090"
 	@echo "✔ Jaeger UI:       http://localhost:16686"
 	@echo "✔ Mailpit UI:      http://localhost:8025"
 
 docker-down:
+	$(DOCKER_COMPOSE) down
+
+docker-reset:
+	@echo "⚠ This removes local PostgreSQL data."
 	$(DOCKER_COMPOSE) down -v
 
 docker-logs:

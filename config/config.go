@@ -63,6 +63,7 @@ func (d DatabaseConfig) DSN() string {
 
 type RedisConfig struct {
 	Addr         string        `mapstructure:"addr"`
+	TLSEnabled   bool          `mapstructure:"tls_enabled"`
 	Password     string        `mapstructure:"password"`
 	DB           int           `mapstructure:"db"`
 	PoolSize     int           `mapstructure:"pool_size"`
@@ -289,6 +290,12 @@ func validate(cfg *Config) error {
 		}
 		if cfg.Redis.Password == "" {
 			errs = append(errs, "redis.password must be configured in production")
+		}
+		if !cfg.Redis.TLSEnabled {
+			errs = append(errs, "redis.tls_enabled must be true in production")
+		}
+		if strings.EqualFold(cfg.Database.SSLMode, "disable") || cfg.Database.SSLMode == "" {
+			errs = append(errs, "database.ssl_mode must require TLS in production")
 		}
 		if cfg.SMTP.Host == "" || cfg.SMTP.Host == "localhost" {
 			errs = append(errs, "smtp.host must point to a real mail service in production")

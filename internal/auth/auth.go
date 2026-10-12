@@ -213,6 +213,49 @@ func (r *Repository) RevokeRefreshTokensByUser(ctx context.Context, tx dbTX, use
 	return nil
 }
 
+func (r *Repository) RevokeRefreshTokenFamily(ctx context.Context, tx dbTX, familyID string) ([]string, error) {
+	if tx == nil {
+		tx = r.db
+	}
+	rows, err := tx.Query(ctx, `
+		SELECT s.id::text
+		FROM sessions s
+		JOIN refresh_tokens rt ON rt.id = s.refresh_token_id
+		WHERE rt.family_id = $1 AND s.deleted_at IS NULL
+	`, familyID)
+	if err != nil {
+		return nil, fmt.Errorf("listing sessions in refresh-token family: %w", err)
+	}
+	defer rows.Close()
+
+	var sessionIDs []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scanning family session: %w", err)
+		}
+		sessionIDs = append(sessionIDs, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("reading family sessions: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `UPDATE refresh_tokens SET revoked_at = COALESCE(revoked_at, NOW()) WHERE family_id = $1`, familyID); err != nil {
+		return nil, fmt.Errorf("revoking refresh-token family: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE sessions s
+		SET deleted_at = NOW()
+		FROM refresh_tokens rt
+		WHERE s.refresh_token_id = rt.id
+		  AND rt.family_id = $1
+		  AND s.deleted_at IS NULL
+	`, familyID); err != nil {
+		return nil, fmt.Errorf("revoking sessions in refresh-token family: %w", err)
+	}
+	return sessionIDs, nil
+}
+
 func (r *Repository) CreateSession(ctx context.Context, tx dbTX, sessionID, userID, refreshTokenID, ipAddress, userAgent string, deviceInfo map[string]any) (string, error) {
 	if tx == nil {
 		tx = r.db
@@ -427,6 +470,20 @@ func (s *Service) Refresh(ctx context.Context, refreshToken, ipAddress, userAgen
 		return nil, err
 	}
 	if rec.RevokedAt != nil {
+		sessionIDs, familyErr := s.repo.RevokeRefreshTokenFamily(ctx, tx, rec.FamilyID)
+		if familyErr != nil {
+			return nil, familyErr
+		}
+		if s.cache != nil {
+			for _, sessionID := range sessionIDs {
+				if err := s.cache.Delete(ctx, "session:"+sessionID); err != nil {
+					return nil, fmt.Errorf("invalidating reused refresh-token family session cache: %w", err)
+				}
+			}
+		}
+		if err := commitTx(ctx, tx); err != nil {
+			return nil, fmt.Errorf("committing refresh-token reuse response: %w", err)
+		}
 		return nil, apperrors.ErrTokenReused()
 	}
 	if time.Now().After(rec.ExpiresAt) {

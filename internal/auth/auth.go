@@ -457,16 +457,17 @@ func (s *Service) Refresh(ctx context.Context, refreshToken, ipAddress, userAgen
 		}
 	}
 
-	response, err := s.issueSessionWithFamily(ctx, tx, *u, roles, ipAddress, userAgent, rec.FamilyID, "refresh")
-	if err != nil {
-		return nil, err
-	}
-	// The database session is revoked during rotation; remove the matching
-	// cache entry as well so the previous access token stops working promptly.
+	// Remove the old session cache entry before committing the rotation.
+	// If cache invalidation fails, abort the transaction rather than leave the
+	// previous access token usable after a successful refresh.
 	if s.cache != nil && rec.SessionID != "" {
 		if err := s.cache.Delete(ctx, "session:"+rec.SessionID); err != nil {
 			return nil, fmt.Errorf("invalidating rotated session cache: %w", err)
 		}
+	}
+	response, err := s.issueSessionWithFamily(ctx, tx, *u, roles, ipAddress, userAgent, rec.FamilyID, "refresh")
+	if err != nil {
+		return nil, err
 	}
 	return response, nil
 }

@@ -1,4 +1,4 @@
-// Package main is the entry point for the Auth Service.
+// Package main is the entry point for the Sentinel API.
 package main
 
 import (
@@ -33,7 +33,7 @@ func main() {
 		ServiceName: cfg.App.Name, ServiceVersion: Version,
 	})
 	l.Info().Str("env", cfg.App.Env).Int("http_port", cfg.App.Port).
-		Int("grpc_port", cfg.App.GRPCPort).Msg("starting auth service")
+		Int("grpc_port", cfg.App.GRPCPort).Msg("starting Sentinel API")
 
 	app, cleanup, err := InitializeApp(cfg)
 	if err != nil {
@@ -103,7 +103,7 @@ func main() {
 		app.GRPCServer.Stop()
 	}
 
-	l.Info().Msg("auth service stopped cleanly")
+	l.Info().Msg("Sentinel API stopped cleanly")
 }
 
 func getEnv(key, fallback string) string {

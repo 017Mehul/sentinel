@@ -193,6 +193,17 @@ func (s *Service) Setup(ctx context.Context, userID string) (*SetupResponse, err
 		return nil, err
 	}
 
+	// Never silently replace an active MFA factor. Re-enrollment after MFA
+	// is enabled must first prove possession of the existing factor through
+	// the dedicated disable/re-enroll flow.
+	if existing, err := s.repo.GetSecret(ctx, tx, userID); err == nil && existing.IsEnabled {
+		return nil, apperrors.ErrMFASetupConflict()
+	} else if err != nil {
+		if ae := apperrors.AsAppError(err); ae == nil || ae.Code != apperrors.CodeMFANotEnabled {
+			return nil, err
+		}
+	}
+
 	key, err := totp.Generate(totp.GenerateOpts{
 		Issuer:      s.appName,
 		AccountName: u.Email,
@@ -323,7 +334,7 @@ func (s *Service) verifyWithBackupOrTOTP(ctx context.Context, tx dbTX, userID, c
 	if totp.Validate(code, plain) {
 		return nil
 	}
-	if len(code) == 8 {
+	if len(code) == 16 {
 		if err := s.repo.UseBackupCode(ctx, tx, userID, crypto.SHA256Hex(code)); err == nil {
 			return nil
 		}
@@ -388,7 +399,7 @@ func generateBackupCodes(count int) ([]string, []string, error) {
 	plain := make([]string, 0, count)
 	hashed := make([]string, 0, count)
 	for i := 0; i < count; i++ {
-		code, err := crypto.SecureRandom(4)
+		code, err := crypto.SecureRandom(8)
 		if err != nil {
 			return nil, nil, err
 		}

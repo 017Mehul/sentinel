@@ -717,7 +717,7 @@ func (h *Handler) RevokeCurrentSession(c *gin.Context) {
 	// leave an access token usable because cache invalidation was ignored.
 	if h.svc.cache != nil {
 		if err := h.svc.cache.Delete(c.Request.Context(), "session:"+sid); err != nil {
-			response.Error(c, apperrors.ErrServiceUnavailable())
+			response.Error(c, apperrors.ErrServiceUnavailable("session cache invalidation failed"))
 			return
 		}
 	}
@@ -768,7 +768,7 @@ func (h *Handler) AdminRevokeSession(c *gin.Context) {
 	if _, err := uuid.Parse(sessionID); err != nil { response.Error(c, apperrors.ErrTokenInvalid()); return }
 	if h.svc.cache != nil {
 		if err := h.svc.cache.Delete(c.Request.Context(), "session:"+sessionID); err != nil {
-			response.Error(c, apperrors.ErrServiceUnavailable()); return
+			response.Error(c, apperrors.ErrServiceUnavailable("admin session cache invalidation failed")); return
 		}
 	}
 	if err := h.svc.repo.RevokeSessionAndRefreshToken(c.Request.Context(), sessionID); err != nil {

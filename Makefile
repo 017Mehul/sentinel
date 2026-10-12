@@ -14,7 +14,7 @@ LDFLAGS            := -s -w
 
 DOCKER_COMPOSE     := docker compose -f docker-compose.yml
 MIGRATE_DIR        := ./migrations
-DB_URL             ?= postgres://postgres:changeme@localhost:5432/authdb?sslmode=disable
+DB_URL             ?= postgres://postgres:$(DB_PASSWORD)@localhost:5432/authdb?sslmode=disable
 
 # ── Build ──────────────────────────────────────────────────────────────────────
 
@@ -145,16 +145,13 @@ docker-up:
 	@echo "▶ Starting full stack..."
 	$(DOCKER_COMPOSE) up --build -d
 	@echo "✔ Auth service:    http://localhost:8080"
-	@echo "✔ Swagger UI:      http://localhost:8081"
 	@echo "✔ Jaeger UI:       http://localhost:16686"
-	@echo "✔ Grafana:         http://localhost:3000"
-	@echo "✔ MailHog:         http://localhost:8025"
 
 docker-down:
 	$(DOCKER_COMPOSE) down -v
 
 docker-logs:
-	$(DOCKER_COMPOSE) logs -f auth postgres redis migrate
+	$(DOCKER_COMPOSE) logs -f auth worker postgres redis migrate
 
 # ── Cleanup ────────────────────────────────────────────────────────────────────
 

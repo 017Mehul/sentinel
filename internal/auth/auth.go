@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	subtle "crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"

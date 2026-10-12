@@ -26,7 +26,7 @@ func TestGenerateBackupCodes_HashesAreDifferentFromPlain(t *testing.T) {
 	plain, hashed, err := generateBackupCodes(5)
 	require.NoError(t, err)
 	for i := range plain {
-		assert.NotEmpty(t, plain[i])
+		assert.Len(t, plain[i], 16, "backup codes should contain 64 bits of entropy encoded as hex")
 		assert.NotEmpty(t, hashed[i])
 		assert.NotEqual(t, plain[i], hashed[i], "plain code must not equal its hash")
 	}
@@ -63,8 +63,7 @@ func TestGenerateBackupCodes_MultipleCalls_DifferentResults(t *testing.T) {
 	plain2, _, err := generateBackupCodes(5)
 	require.NoError(t, err)
 
-	// With high probability two independent calls produce different codes
-	// (birthday collision is negligible for 5 random 8-byte hex strings)
+	// Independent 8-byte random codes should not collide in this small sample.
 	identical := 0
 	for i := range plain1 {
 		if plain1[i] == plain2[i] {

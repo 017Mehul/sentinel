@@ -63,6 +63,8 @@ func ErrInvalidVerifyToken() *AppError { return New(CodeInvalidVerifyToken, "Ema
 func ErrMFARequired() *AppError { return New(CodeMFARequired, "MFA verification required", http.StatusUnauthorized) }
 func ErrMFAInvalidOTP() *AppError { return New(CodeMFAInvalidOTP, "Invalid or expired OTP", http.StatusUnauthorized) }
 func ErrMFASetupConflict() *AppError { return New(CodeMFASetupConflict, "MFA is already enabled; verify the existing factor before replacing it", http.StatusConflict) }
+func ErrOAuthProviderError() *AppError { return New(CodeOAuthProviderError, "OAuth provider verification failed", http.StatusBadRequest) }
+func ErrOAuthStateInvalid() *AppError { return New(CodeOAuthStateInvalid, "OAuth state is invalid or expired", http.StatusBadRequest) }
 func ErrMFANotEnabled() *AppError { return New(CodeMFANotEnabled, "MFA is not enabled for this account", http.StatusBadRequest) }
 func ErrInvalidBackupCode() *AppError { return New(CodeInvalidBackupCode, "Invalid backup code", http.StatusUnauthorized) }
 func ErrUserNotFound() *AppError { return New(CodeUserNotFound, "User not found", http.StatusNotFound) }

@@ -70,7 +70,7 @@
   }
   function renderSessions() {
     const body=$("#sessionsTable"); if(!body)return;
-    body.innerHTML=state.sessions.length?state.sessions.map(s=>'<tr><td>'+esc(s.id||s.session_id||"Session")+'</td><td>'+esc(s.device_info?.user_agent||s.user_agent||s.device||"Unknown device")+'</td><td>'+esc(s.ip_address||s.ip||"—")+'</td><td>'+esc(relative(s.created_at||s.last_seen_at))+'</td><td><span class="status active">● Active</span></td></tr>').join(""):'<tr><td colspan="5">No active sessions returned by the API.</td></tr>';
+    body.innerHTML=state.sessions.length?state.sessions.map(s=>'<tr><td>'+esc(s.id||s.session_id||"Session")+'</td><td>'+esc(s.email||s.device_info?.user_agent||s.user_agent||s.device||"Unknown device")+'</td><td>'+esc(s.ip_address||s.ip||"—")+'</td><td>'+esc(relative(s.created_at||s.last_active_at||s.last_seen_at))+'</td><td><span class="status active">● Active</span>'+(s.email? ' <button class="text-btn" data-revoke-session="'+esc(s.id||s.session_id||"")+'">Revoke</button>':'')+'</td></tr>').join(""):'<tr><td colspan="5">No active sessions returned by the API.</td></tr>';
   }
   function renderAudit() {
     const body=$("#auditTable"); if(!body)return;
@@ -91,7 +91,7 @@
     ]);
     const value=(result,key)=>result.status==="fulfilled"?(result.value[key]??result.value):[];
     if(me.status==="fulfilled")state.user=me.value.user||me.value;
-    if(sessions.status==="fulfilled")state.sessions=value(sessions,"sessions");
+    if(adminSessions.status==="fulfilled")state.sessions=value(adminSessions,"sessions"); else if(mySessions.status==="fulfilled")state.sessions=value(mySessions,"sessions");
     if(roles.status==="fulfilled")state.rolesData=value(roles,"roles");
     if(permissions.status==="fulfilled")state.permissions=value(permissions,"permissions");
     if(audit.status==="fulfilled")state.audit=value(audit,"audit_logs");
@@ -112,7 +112,7 @@
     const subtitle=$("#pageSubtitle");if(subtitle&&state.accessToken)subtitle.textContent="Live API data is shown in the connected tables below. Clearly labelled sample widgets are illustrative.";
     $(".panel-head p").forEach(p=>{if(state.accessToken&&/demo/i.test(p.textContent))p.textContent=p.textContent.replace(/demo/ig,"live");});
     setConnection(true);
-    const failures=[me,sessions,roles,permissions,audit,users,mfa,health].filter(x=>x.status==="rejected").length;
+    const failures=[me,mySessions,roles,permissions,audit,users,mfa,health].filter(x=>x.status==="rejected").length;
     if(failures)toast("Connected with "+failures+" API view(s) unavailable. Check permissions and API routes.");
   }
   const titles={overview:["Security Overview","Monitor your identity and access infrastructure in real time."],users:["Users","Identity data available through the current API permissions."],roles:["Roles & Permissions","Database-backed roles and permissions returned by Sentinel."],sessions:["Sessions","Active sessions returned for the signed-in identity."],audit:["Audit Logs","Recent audit events recorded by the Sentinel backend."],authentication:["Authentication","Password-based login and JWT-backed API access."],mfa:["Multi-Factor Authentication","Configure TOTP using the authenticated MFA endpoints."],oauth:["OAuth Providers","Google and GitHub OAuth login routes exposed by the backend."],security:["Security","Health, readiness and API security controls."],settings:["Settings","API connection and session controls."]};
@@ -151,6 +151,8 @@
     const tableSection=document.createElement("section");tableSection.className="tables-grid live-data-tables";
     tableSection.innerHTML='<article class="panel table-panel"><div class="panel-head"><div><h2>Active Sessions</h2><p>Sessions visible to the signed-in identity.</p></div><button class="text-btn" data-action="revoke-current-session">Revoke current session</button></div><div class="table-wrap"><table><thead><tr><th>SESSION</th><th>DEVICE</th><th>IP ADDRESS</th><th>CREATED</th><th>STATUS</th></tr></thead><tbody id="sessionsTable"><tr><td colspan="5">Connect to load sessions.</td></tr></tbody></table></div></article><article class="panel table-panel"><div class="panel-head"><div><h2>Live Audit Events</h2><p>Latest audit records returned by the backend.</p></div></div><div class="table-wrap"><table><thead><tr><th>TIME</th><th>ACTION</th><th>ACTOR / USER</th><th>IP ADDRESS</th><th>STATUS</th></tr></thead><tbody id="auditTable"><tr><td colspan="5">Connect to load audit events.</td></tr></tbody></table></div></article><article class="panel table-panel"><div class="panel-head"><div><h2>Backend Roles</h2><p>Actual role definitions from PostgreSQL.</p></div></div><div class="table-wrap"><table><thead><tr><th>ROLE</th><th>DESCRIPTION</th><th>CREATED</th></tr></thead><tbody id="rolesTable"><tr><td colspan="3">Connect as an administrator.</td></tr></tbody></table></div></article><article class="panel table-panel"><div class="panel-head"><div><h2>Backend Permissions</h2><p>Actual permission catalogue from PostgreSQL.</p></div></div><div class="table-wrap"><table><thead><tr><th>PERMISSION</th><th>RESOURCE</th><th>ACTION</th><th>DESCRIPTION</th></tr></thead><tbody id="permissionsTable"><tr><td colspan="4">Connect as an administrator.</td></tr></tbody></table></div></article>';
     $(".content").append(tableSection);
+    tableSection.addEventListener("click",async e=>{const button=e.target.closest("[data-revoke-session]");if(!button)return;const id=button.dataset.revokeSession;if(!id||!confirm("Revoke this session?"))return;try{await request("/api/v1/admin/sessions/"+encodeURIComponent(id),{method:"DELETE"});state.sessions=state.sessions.filter(x=>(x.id||x.session_id)!==id);renderSessions();toast("Session revoked.");}catch(ex){toast("Could not revoke session: "+ex.message);}});
+
     const feature=document.createElement("section");feature.id="featurePanel";feature.className="feature-panel";feature.hidden=true;
     feature.innerHTML='<article class="panel" id="featureContent"></article>';
     $(".content").append(feature);

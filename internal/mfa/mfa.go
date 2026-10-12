@@ -342,6 +342,20 @@ func (s *Service) verifyWithBackupOrTOTP(ctx context.Context, tx dbTX, userID, c
 	return apperrors.ErrMFAInvalidOTP()
 }
 
+func (h *Handler) Status(c *gin.Context) {
+	userID, ok := c.Get(string(contextkeys.UserID))
+	if !ok {
+		response.Error(c, apperrors.ErrForbidden())
+		return
+	}
+	enabled, err := h.svc.Enabled(c.Request.Context(), fmt.Sprint(userID))
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.OK(c, gin.H{"enabled": enabled, "configured": enabled})
+}
+
 func (h *Handler) Setup(c *gin.Context) {
 	actualUserID, ok := c.Get(string(contextkeys.UserID))
 	if !ok {

@@ -2,6 +2,11 @@
         docker-up docker-down docker-reset docker-build clean gen-keys help
 
 # ── Variables ──────────────────────────────────────────────────────────────────
+ifneq ($(wildcard .env),)
+include .env
+export
+endif
+
 BINARY_AUTH        := bin/sentinel
 BINARY_WORKER      := bin/sentinel-worker
 
@@ -14,6 +19,7 @@ LDFLAGS            := -s -w
 
 DOCKER_COMPOSE     := docker compose -f docker-compose.yml
 MIGRATE_DIR        := ./migrations
+DB_PASSWORD        ?= changeme
 DB_URL             ?= postgres://postgres:$(DB_PASSWORD)@localhost:5432/authdb?sslmode=disable
 
 # ── Build ──────────────────────────────────────────────────────────────────────

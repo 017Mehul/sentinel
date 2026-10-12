@@ -25,7 +25,7 @@ docker-compose.production.yml is a reference template for an API/worker pair beh
 - mount protected JWT private/public key files;
 - supply a random 32-byte AES key and a strong OAuth state secret;
 - configure a verified SMTP sender and real provider credentials;
-- set CORS_ALLOWED_ORIGINS to the exact HTTPS console origin;
+- set CORS_ALLOWED_ORIGINS to the exact HTTPS console origin; set Vercel SENTINEL_API_BASE to the API HTTPS origin (the static build fails if missing or invalid);
 - set TLS_TERMINATED_BY_PROXY=true only behind a trusted HTTPS proxy;
 - restrict the API to private ingress, configure backups, and test restore procedures.
 

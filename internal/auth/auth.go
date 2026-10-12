@@ -488,11 +488,16 @@ func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 		return err
 	}
 	if rec.SessionID != "" {
+		if s.cache != nil {
+			// Invalidate the access-token session before committing revocation.
+			// If Redis is unavailable, fail closed rather than leave the token
+			// usable after the database revocation succeeds.
+			if err := s.cache.Delete(ctx, "session:"+rec.SessionID); err != nil {
+				return fmt.Errorf("invalidating logout session cache: %w", err)
+			}
+		}
 		if err := s.repo.RevokeSession(ctx, tx, rec.SessionID); err != nil {
 			return err
-		}
-		if s.cache != nil {
-			_ = s.cache.Delete(ctx, "session:"+rec.SessionID)
 		}
 	}
 	if err := s.repo.WriteAuditLog(ctx, tx, rec.UserID, "", "auth.logout", "session", rec.SessionID, nil, "", ""); err != nil {
@@ -643,8 +648,15 @@ func (h *Handler) RevokeCurrentSession(c *gin.Context) {
 	if !ok { response.Error(c, apperrors.ErrTokenInvalid()); return }
 	sid, ok := sessionID.(string)
 	if !ok || sid == "" { response.Error(c, apperrors.ErrTokenInvalid()); return }
+	// Invalidate Redis first so a successful database revocation can never
+	// leave an access token usable because cache invalidation was ignored.
+	if h.svc.cache != nil {
+		if err := h.svc.cache.Delete(c.Request.Context(), "session:"+sid); err != nil {
+			response.Error(c, apperrors.ErrServiceUnavailable("session store unavailable"))
+			return
+		}
+	}
 	if err := h.svc.repo.RevokeSessionAndRefreshToken(c.Request.Context(), sid); err != nil { response.Error(c, err); return }
-	if h.svc.cache != nil { _ = h.svc.cache.Delete(c.Request.Context(), "session:"+sid) }
 	response.NoContent(c)
 }
 

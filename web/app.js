@@ -200,7 +200,7 @@
       e.preventDefault();const form=e.target;
       try{
         if(form.id==="profileForm"){
-          const data=Object.fromEntries(new FormData(form));const profile=await request("/api/v1/users/me",{method:"PATCH",body:JSON.stringify(data)});
+          const data=Object.fromEntries(new FormData(form));if(!data.avatar_url)delete data.avatar_url;const profile=await request("/api/v1/users/me",{method:"PATCH",body:JSON.stringify(data)});
           state.user=profile.user||profile;renderUserIdentity();toast("Profile saved.");renderFeaturePanel("settings");
         }else if(form.id==="mfaCodeForm"){
           const code=new FormData(form).get("code");const op=e.submitter?.value;

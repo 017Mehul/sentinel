@@ -287,6 +287,67 @@ func requireAdmin(c *gin.Context) bool {
 	return false
 }
 
+type AdminUser struct {
+	ID string `json:"id"`
+	Email string `json:"email"`
+	FullName string `json:"full_name"`
+	IsVerified bool `json:"is_verified"`
+	IsLocked bool `json:"is_locked"`
+	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	Roles []string `json:"roles"`
+}
+
+func (h *Handler) ListUsers(c *gin.Context) {
+	if !requireAdmin(c) { return }
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "25"))
+	if page < 1 { page = 1 }
+	if pageSize < 1 { pageSize = 25 }
+	if pageSize > 100 { pageSize = 100 }
+	search := strings.TrimSpace(c.Query("search"))
+	role := strings.TrimSpace(c.Query("role"))
+	ctx := c.Request.Context()
+	var total int64
+	if err := h.svc.repo.db.QueryRow(ctx, `
+		SELECT COUNT(*) FROM users u
+		WHERE u.deleted_at IS NULL
+		  AND ($1 = '' OR u.email ILIKE '%' || $1 || '%' OR u.full_name ILIKE '%' || $1 || '%')
+		  AND ($2 = '' OR EXISTS (
+			SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+			WHERE ur.user_id = u.id AND r.name = $2
+		  ))`, search, role).Scan(&total); err != nil {
+		response.Error(c, fmt.Errorf("counting admin users: %w", err)); return
+	}
+	rows, err := h.svc.repo.db.Query(ctx, `
+		SELECT u.id::text, u.email, u.full_name, u.is_verified, u.is_locked, u.last_login_at, u.created_at,
+		       COALESCE(array_agg(r.name) FILTER (WHERE r.name IS NOT NULL), ARRAY[]::text[])
+		FROM users u
+		LEFT JOIN user_roles ur ON ur.user_id = u.id
+		LEFT JOIN roles r ON r.id = ur.role_id
+		WHERE u.deleted_at IS NULL
+		  AND ($1 = '' OR u.email ILIKE '%' || $1 || '%' OR u.full_name ILIKE '%' || $1 || '%')
+		  AND ($2 = '' OR EXISTS (
+			SELECT 1 FROM user_roles ur2 JOIN roles r2 ON r2.id = ur2.role_id
+			WHERE ur2.user_id = u.id AND r2.name = $2
+		  ))
+		GROUP BY u.id
+		ORDER BY u.created_at DESC
+		LIMIT $3 OFFSET $4`, search, role, pageSize, (page-1)*pageSize)
+	if err != nil { response.Error(c, fmt.Errorf("listing admin users: %w", err)); return }
+	defer rows.Close()
+	users := make([]AdminUser, 0, pageSize)
+	for rows.Next() {
+		var u AdminUser
+		if err := rows.Scan(&u.ID, &u.Email, &u.FullName, &u.IsVerified, &u.IsLocked, &u.LastLoginAt, &u.CreatedAt, &u.Roles); err != nil {
+			response.Error(c, fmt.Errorf("scanning admin user: %w", err)); return
+		}
+		users = append(users, u)
+	}
+	if err := rows.Err(); err != nil { response.Error(c, fmt.Errorf("reading admin users: %w", err)); return }
+	response.OK(c, gin.H{"users": users, "page": page, "page_size": pageSize, "total": total})
+}
+
 func (h *Handler) ListRoles(c *gin.Context) {
 	if !requireAdmin(c) {
 		return

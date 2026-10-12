@@ -18,7 +18,8 @@ type Config struct {
 	Redis    RedisConfig    `mapstructure:"redis"`
 	JWT      JWTConfig      `mapstructure:"jwt"`
 	Secrets  SecretsConfig  `mapstructure:"secrets"`
-	// NATS is deprecated; active async delivery uses the PostgreSQL outbox worker and SMTP.\n	NATS NATSConfig `mapstructure:"nats"`
+	// NATS is deprecated; active async delivery uses the PostgreSQL outbox worker and SMTP.
+	NATS NATSConfig `mapstructure:"nats"`
 	SMTP     SMTPConfig     `mapstructure:"smtp"`
 	OAuth    OAuthConfig    `mapstructure:"oauth"`
 	Security SecurityConfig `mapstructure:"security"`

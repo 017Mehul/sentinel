@@ -305,6 +305,12 @@ func validate(cfg *Config) error {
 		if cfg.SMTP.FromEmail == "" || strings.Contains(cfg.SMTP.FromEmail, "example.com") {
 			errs = append(errs, "smtp.from_email must be a verified sender address in production")
 		}
+		if !cfg.SMTP.TLSEnabled {
+			errs = append(errs, "smtp.tls_enabled must be true in production")
+		}
+		if cfg.SMTP.Username == "" || cfg.SMTP.Password == "" {
+			errs = append(errs, "smtp.username and smtp.password must be configured in production")
+		}
 		if (cfg.OAuth.Google.ClientID == "") != (cfg.OAuth.Google.ClientSecret == "") {
 			errs = append(errs, "google OAuth client ID and secret must be configured together")
 		}

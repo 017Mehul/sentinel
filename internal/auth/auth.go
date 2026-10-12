@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"strings"
 	"time"
 
@@ -719,6 +720,58 @@ func (h *Handler) RevokeCurrentSession(c *gin.Context) {
 		}
 	}
 	if err := h.svc.repo.RevokeSessionAndRefreshToken(c.Request.Context(), sid); err != nil { response.Error(c, err); return }
+	response.NoContent(c)
+}
+
+type AdminSessionRecord struct {
+	ID string `json:"id"`
+	UserID string `json:"user_id"`
+	Email string `json:"email"`
+	UserAgent string `json:"user_agent,omitempty"`
+	IPAddress string `json:"ip_address,omitempty"`
+	LastActiveAt time.Time `json:"last_active_at"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (h *Handler) AdminListSessions(c *gin.Context) {
+	roles, _ := c.Get(string(contextkeys.UserRoles))
+	isAdmin := false
+	if roleList, ok := roles.([]string); ok {
+		for _, role := range roleList { if role == "admin" { isAdmin = true; break } }
+	}
+	if !isAdmin { response.Error(c, apperrors.ErrForbidden()); return }
+	rows, err := h.svc.repo.db.Query(c.Request.Context(), "SELECT s.id::text, s.user_id::text, u.email, COALESCE(s.user_agent, ''), COALESCE(host(s.ip_address), ''), s.last_active_at, s.created_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.deleted_at IS NULL ORDER BY s.last_active_at DESC LIMIT 200")
+	if err != nil { response.Error(c, fmt.Errorf("listing admin sessions: %w", err)); return }
+	defer rows.Close()
+	sessions := make([]AdminSessionRecord, 0)
+	for rows.Next() {
+		var item AdminSessionRecord
+		if err := rows.Scan(&item.ID, &item.UserID, &item.Email, &item.UserAgent, &item.IPAddress, &item.LastActiveAt, &item.CreatedAt); err != nil {
+			response.Error(c, fmt.Errorf("scanning admin session: %w", err)); return
+		}
+		sessions = append(sessions, item)
+	}
+	if err := rows.Err(); err != nil { response.Error(c, fmt.Errorf("reading admin sessions: %w", err)); return }
+	response.OK(c, gin.H{"sessions": sessions})
+}
+
+func (h *Handler) AdminRevokeSession(c *gin.Context) {
+	roles, _ := c.Get(string(contextkeys.UserRoles))
+	isAdmin := false
+	if roleList, ok := roles.([]string); ok {
+		for _, role := range roleList { if role == "admin" { isAdmin = true; break } }
+	}
+	if !isAdmin { response.Error(c, apperrors.ErrForbidden()); return }
+	sessionID := strings.TrimSpace(c.Param("id"))
+	if sessionID == "" { response.Error(c, apperrors.ErrTokenInvalid()); return }
+	if h.svc.cache != nil {
+		if err := h.svc.cache.Delete(c.Request.Context(), "session:"+sessionID); err != nil {
+			response.Error(c, apperrors.ErrServiceUnavailable("session store unavailable")); return
+		}
+	}
+	if err := h.svc.repo.RevokeSessionAndRefreshToken(c.Request.Context(), sessionID); err != nil {
+		response.Error(c, err); return
+	}
 	response.NoContent(c)
 }
 

@@ -87,6 +87,24 @@
     const body=$("#permissionsTable");if(!body)return;
     body.innerHTML=state.permissions.length?state.permissions.map(p=>'<tr><td><b>'+esc(p.name)+'</b></td><td>'+esc(p.resource)+'</td><td>'+esc(p.action)+'</td><td>'+esc(p.description||"—")+'</td></tr>').join(""):'<tr><td colspan="4">No permission data available.</td></tr>';
   }
+  function renderOverviewUsers() {
+    const body=$("#usersTable"); if(!body)return;
+    body.innerHTML=state.users.length?state.users.slice(0,5).map(u=>{
+      const name=u.full_name||u.email||"User";
+      const initials=name.split(/[\\s@._-]+/).filter(Boolean).slice(0,2).map(x=>x[0].toUpperCase()).join("")||"U";
+      const roleNames=(u.roles||[]).join(", ")||"No roles";
+      const status=u.is_locked?"Locked":u.is_verified?"Verified":"Unverified";
+      const mfaStatus=state.user&&u.id===state.user.id?(state.mfa.enabled?"Enabled":"Disabled"):"—";
+      return '<tr><td><div class="user-cell"><span class="user-avatar">'+esc(initials)+'</span><div><b>'+esc(name)+'</b><small>'+esc(u.email)+'</small></div></div></td><td><span class="tag blue-tag">'+esc(roleNames)+'</span></td><td><span class="status '+(u.is_locked?"invited":"active")+'">● '+esc(status)+'</span></td><td><span class="tag gray-tag">'+esc(mfaStatus)+'</span></td><td>'+esc(relative(u.last_login_at))+'</td><td></td></tr>';
+    }).join(""):'<tr><td colspan="6">No users returned by the admin API.</td></tr>';
+  }
+  function renderOverviewAudit() {
+    const body=$("#overviewAuditTable"); if(!body)return;
+    body.innerHTML=state.audit.length?state.audit.slice(0,7).map(a=>{
+      const failed=/fail|denied|blocked/i.test(a.action||"");
+      return '<tr><td>'+esc(relative(a.created_at))+'</td><td>'+esc(a.action||"Event")+'</td><td>'+esc(a.actor_id||a.user_id||"System")+'</td><td>'+esc(a.ip_address||"—")+'</td><td><span class="event '+(failed?"blocked":"success")+'">● '+(failed?"Review":"Recorded")+'</span></td></tr>';
+    }).join(""):'<tr><td colspan="5">No audit events returned by the API.</td></tr>';
+  }
   async function loadLiveData() {
     const [me,mySessions,adminSessions,roles,permissions,audit,users,mfa,healthz,health,version]=await Promise.allSettled([
       request("/api/v1/users/me"),request("/api/v1/sessions"),request("/api/v1/admin/sessions"),request("/api/v1/admin/roles"),request("/api/v1/admin/permissions"),request("/api/v1/admin/audit-logs"),request("/api/v1/admin/users?page=1&page_size=100"),request("/api/v1/mfa/status"),request("/healthz"),request("/ready"),request("/version")
@@ -108,16 +126,16 @@
     if(statusRows[3]?.querySelector("b"))statusRows[3].querySelector("b").textContent="● Configuration not exposed";
 
     if(me.status==="rejected")toast("Signed in, but profile could not load: "+me.reason.message);
-    renderUserIdentity();renderSessions();renderAudit();renderRoles();renderPermissions();
+    renderUserIdentity();renderSessions();renderAudit();renderRoles();renderPermissions();renderOverviewUsers();renderOverviewAudit();
     const cards=$(".metric-card");
     if(cards[0]){const label=cards[0].querySelector(".metric-label"),value=cards[0].querySelector("strong"),note=cards[0].querySelector("small");if(label)label.textContent="Signed-in Identity";if(value)value.textContent=state.user?"1":"—";if(note)note.innerHTML="Authenticated <em>current account only</em>";}
     if(cards[1]){const label=cards[1].querySelector(".metric-label"),value=cards[1].querySelector("strong"),note=cards[1].querySelector("small");if(label)label.textContent="My Active Sessions";if(value)value.textContent=String(state.sessions.length);if(note)note.innerHTML="From API <em>visible to this account</em>";}
     if(cards[2]){const label=cards[2].querySelector(".metric-label"),value=cards[2].querySelector("strong"),note=cards[2].querySelector("small");if(label)label.textContent="Failure Events Loaded";if(value)value.textContent=String(state.audit.filter(a=>/fail|denied|blocked/i.test(a.action||"")).length);if(note)note.innerHTML="Audit sample <em>not a time-series total</em>";}
     if(cards[3]){const label=cards[3].querySelector(".metric-label"),value=cards[3].querySelector("strong"),note=cards[3].querySelector("small");if(label)label.textContent="MFA for Account";if(value)value.textContent=state.mfa.enabled?"Enabled":"Disabled";if(note)note.textContent=state.mfa.configured?"Factor configured":"No factor configured";}
-    const userHead=$(".tables-grid .table-panel .panel-head h2");if(userHead)userHead.textContent="Sample Users (Not Live)";
-    const auditHeads=$$(".tables-grid .table-panel .panel-head h2");if(auditHeads[1])auditHeads[1].textContent="Sample Security Events (Not Live)";
+    const userHead=$(".tables-grid .table-panel .panel-head h2");if(userHead)userHead.textContent="Recent Users";
+    const auditHeads=$$(".tables-grid .table-panel .panel-head h2");if(auditHeads[1])auditHeads[1].textContent="Recent Security Events";
     const chartDesc=$(".chart-panel .panel-head p");if(chartDesc)chartDesc.textContent="Illustrative chart — the API does not currently expose aggregated activity time series.";
-    const distDesc=$(".distribution .panel-head p");if(distDesc)distDesc.textContent="Illustrative distribution — an admin user-directory endpoint is not yet available.";
+    const distDesc=$(".distribution .panel-head p");if(distDesc)distDesc.textContent="Illustrative distribution — aggregate role counts are not exposed by the API.";
     const subtitle=$("#pageSubtitle");if(subtitle&&state.accessToken)subtitle.textContent="Live API data is shown in the connected tables below. Clearly labelled sample widgets are illustrative.";
     $$(".panel-head p").forEach(p=>{if(state.accessToken&&/demo/i.test(p.textContent))p.textContent=p.textContent.replace(/demo/ig,"live");});
     setConnection(true);

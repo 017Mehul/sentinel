@@ -88,8 +88,8 @@
     body.innerHTML=state.permissions.length?state.permissions.map(p=>'<tr><td><b>'+esc(p.name)+'</b></td><td>'+esc(p.resource)+'</td><td>'+esc(p.action)+'</td><td>'+esc(p.description||"—")+'</td></tr>').join(""):'<tr><td colspan="4">No permission data available.</td></tr>';
   }
   async function loadLiveData() {
-    const [me,mySessions,adminSessions,roles,permissions,audit,users,mfa,health,version]=await Promise.allSettled([
-      request("/api/v1/users/me"),request("/api/v1/sessions"),request("/api/v1/admin/sessions"),request("/api/v1/admin/roles"),request("/api/v1/admin/permissions"),request("/api/v1/admin/audit-logs"),request("/api/v1/admin/users?page=1&page_size=100"),request("/api/v1/mfa/status"),request("/ready"),request("/version")
+    const [me,mySessions,adminSessions,roles,permissions,audit,users,mfa,healthz,health,version]=await Promise.allSettled([
+      request("/api/v1/users/me"),request("/api/v1/sessions"),request("/api/v1/admin/sessions"),request("/api/v1/admin/roles"),request("/api/v1/admin/permissions"),request("/api/v1/admin/audit-logs"),request("/api/v1/admin/users?page=1&page_size=100"),request("/api/v1/mfa/status"),request("/healthz"),request("/ready"),request("/version")
     ]);
     const value=(result,key)=>result.status==="fulfilled"?(result.value[key]??result.value):[];
     if(me.status==="fulfilled")state.user=me.value.user||me.value;
@@ -99,14 +99,21 @@
     if(audit.status==="fulfilled")state.audit=value(audit,"audit_logs");
     if(users.status==="fulfilled")state.users=value(users,"users");
     if(mfa.status==="fulfilled")state.mfa={enabled:!!mfa.value.enabled,configured:!!mfa.value.configured};
-    if(health.status==="fulfilled")state.health={ready:true,version:version.status==="fulfilled"?version.value:null}; else state.health={ready:false};
+    state.health={live:healthz.status==="fulfilled",ready:health.status==="fulfilled",version:version.status==="fulfilled"?version.value:null};
+    const statusPill=$(".system-status .status-pill"); if(statusPill)statusPill.textContent=state.health.live&&state.health.ready?"● API and dependencies ready":state.health.live?"● API responding; dependencies not ready":"● API not responding";
+    const statusRows=$(".system-status .system-list div");
+    if(statusRows[0]?.querySelector("b"))statusRows[0].querySelector("b").textContent=state.health.live?"● Responding":"● Not responding";
+    if(statusRows[1]?.querySelector("b"))statusRows[1].querySelector("b").textContent=state.health.ready?"● Ready":"● Not ready";
+    if(statusRows[2]?.querySelector("b"))statusRows[2].querySelector("b").textContent="● Configuration not exposed";
+    if(statusRows[3]?.querySelector("b"))statusRows[3].querySelector("b").textContent="● Configuration not exposed";
+
     if(me.status==="rejected")toast("Signed in, but profile could not load: "+me.reason.message);
     renderUserIdentity();renderSessions();renderAudit();renderRoles();renderPermissions();
     const cards=$(".metric-card");
     if(cards[0]){const label=cards[0].querySelector(".metric-label"),value=cards[0].querySelector("strong"),note=cards[0].querySelector("small");if(label)label.textContent="Signed-in Identity";if(value)value.textContent=state.user?"1":"—";if(note)note.innerHTML="Authenticated <em>current account only</em>";}
     if(cards[1]){const label=cards[1].querySelector(".metric-label"),value=cards[1].querySelector("strong"),note=cards[1].querySelector("small");if(label)label.textContent="My Active Sessions";if(value)value.textContent=String(state.sessions.length);if(note)note.innerHTML="From API <em>visible to this account</em>";}
     if(cards[2]){const label=cards[2].querySelector(".metric-label"),value=cards[2].querySelector("strong"),note=cards[2].querySelector("small");if(label)label.textContent="Failure Events Loaded";if(value)value.textContent=String(state.audit.filter(a=>/fail|denied|blocked/i.test(a.action||"")).length);if(note)note.innerHTML="Audit sample <em>not a time-series total</em>";}
-    if(cards[3]){const label=cards[3].querySelector(".metric-label"),value=cards[3].querySelector("strong"),note=cards[3].querySelector("small");if(label)label.textContent="MFA Adoption";if(value)value.textContent="N/A";if(note)note.textContent="API status endpoint not available";}
+    if(cards[3]){const label=cards[3].querySelector(".metric-label"),value=cards[3].querySelector("strong"),note=cards[3].querySelector("small");if(label)label.textContent="MFA for Account";if(value)value.textContent=state.mfa.enabled?"Enabled":"Disabled";if(note)note.textContent=state.mfa.configured?"Factor configured":"No factor configured";}
     const userHead=$(".tables-grid .table-panel .panel-head h2");if(userHead)userHead.textContent="Sample Users (Not Live)";
     const auditHeads=$$(".tables-grid .table-panel .panel-head h2");if(auditHeads[1])auditHeads[1].textContent="Sample Security Events (Not Live)";
     const chartDesc=$(".chart-panel .panel-head p");if(chartDesc)chartDesc.textContent="Illustrative chart — the API does not currently expose aggregated activity time series.";
@@ -114,7 +121,7 @@
     const subtitle=$("#pageSubtitle");if(subtitle&&state.accessToken)subtitle.textContent="Live API data is shown in the connected tables below. Clearly labelled sample widgets are illustrative.";
     $$(".panel-head p").forEach(p=>{if(state.accessToken&&/demo/i.test(p.textContent))p.textContent=p.textContent.replace(/demo/ig,"live");});
     setConnection(true);
-    const failures=[me,mySessions,roles,permissions,audit,users,mfa,health].filter(x=>x.status==="rejected").length;
+    const failures=[me,mySessions,roles,permissions,audit,users,mfa,healthz,health].filter(x=>x.status==="rejected").length;
     if(failures)toast("Connected with "+failures+" API view(s) unavailable. Check permissions and API routes.");
   }
   const titles={overview:["Security Overview","Monitor your identity and access infrastructure in real time."],users:["Users","Identity data available through the current API permissions."],roles:["Roles & Permissions","Database-backed roles and permissions returned by Sentinel."],sessions:["Sessions","Active sessions returned for the signed-in identity."],audit:["Audit Logs","Recent audit events recorded by the Sentinel backend."],authentication:["Authentication","Password-based login and JWT-backed API access."],mfa:["Multi-Factor Authentication","Configure TOTP using the authenticated MFA endpoints."],oauth:["OAuth Providers","Google and GitHub OAuth login routes exposed by the backend."],security:["Security","Health, readiness and API security controls."],settings:["Settings","API connection and session controls."]};
@@ -130,7 +137,7 @@
     } else if(page==="oauth"){
       panel.innerHTML='<div class="panel-head"><div><h2>OAuth Sign-in</h2><p>Start the configured provider flow on the Sentinel API.</p></div></div><p class="feature-copy">Provider secrets remain server-side. This console does not expose or edit provider credentials.</p><div class="feature-actions"><button class="primary-btn" data-feature-action="oauth-google">Continue with Google</button><button class="outline-btn" data-feature-action="oauth-github">Continue with GitHub</button></div>';
     } else if(page==="security" || page==="authentication"){
-      panel.innerHTML='<div class="panel-head"><div><h2>'+(page==="security"?"Live System Readiness":"Authentication Controls")+'</h2><p>Values below are queried from the connected backend.</p></div><button class="text-btn" data-feature-action="refresh-health">Refresh</button></div><div class="system-list"><div><span>API liveness</span><b>'+(state.health?"● Responding":"● Not checked")+'</b></div><div><span>Database &amp; Redis readiness</span><b>'+(state.health?.ready?"● Ready":"● Not ready / unavailable")+'</b></div><div><span>Service version</span><b>'+esc(state.health?.version?.version||state.health?.version?.data?.version||"Unknown")+'</b></div><div><span>MFA for this account</span><b>'+(state.mfa.enabled?"● Enabled":"● Not enabled")+'</b></div></div><p class="feature-copy">This is service readiness, not a claim that every optional integration (OAuth, SMTP, tracing) is operational.</p>';
+      panel.innerHTML='<div class="panel-head"><div><h2>'+(page==="security"?"Live System Readiness":"Authentication Controls")+'</h2><p>Values below are queried from the connected backend.</p></div><button class="text-btn" data-feature-action="refresh-health">Refresh</button></div><div class="system-list"><div><span>API liveness</span><b>'+(state.health?.live?"● Responding":"● Not responding")+'</b></div><div><span>Database &amp; Redis readiness</span><b>'+(state.health?.ready?"● Ready":"● Not ready / unavailable")+'</b></div><div><span>Service version</span><b>'+esc(state.health?.version?.version||state.health?.version?.data?.version||"Unknown")+'</b></div><div><span>MFA for this account</span><b>'+(state.mfa.enabled?"● Enabled":"● Not enabled")+'</b></div></div><p class="feature-copy">This is service readiness, not a claim that every optional integration (OAuth, SMTP, tracing) is operational.</p>';
     } else {
       panel.innerHTML='<div class="panel-head"><div><h2>Sentinel API</h2><p>Connect the console to view real backend data.</p></div></div><p class="feature-copy">Use Connect API to authenticate. Administrative actions require an account with the appropriate role.</p>';
     }

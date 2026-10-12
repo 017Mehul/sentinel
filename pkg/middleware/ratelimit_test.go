@@ -51,6 +51,20 @@ func TestRateLimitMiddleware_NilConfig_PassesThrough(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
+func TestRateLimitMiddleware_AuthWithoutRedis_FailsClosed(t *testing.T) {
+	mw := RateLimitMiddleware(&config.RateLimitConfig{
+		Enabled:    true,
+		AuthRPM:    10,
+		Window:     time.Minute,
+	}, nil, true)
+	r := newTestRouter(mw)
+
+	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
+}
+
 func TestRateLimitMiddleware_NilRedis_FailsOpen(t *testing.T) {
 	mw := RateLimitMiddleware(&config.RateLimitConfig{
 		Enabled:    true,

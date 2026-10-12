@@ -16,6 +16,10 @@ import (
 
 // RateLimiter creates a rate limiting middleware using Redis.
 func RateLimiter(c *cache.Client, rpm int, window time.Duration, keyPrefix string) gin.HandlerFunc {
+	return rateLimiter(c, rpm, window, keyPrefix, false)
+}
+
+func rateLimiter(c *cache.Client, rpm int, window time.Duration, keyPrefix string, failClosed bool) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		if c == nil || rpm <= 0 {
 			ctx.Next()
@@ -30,7 +34,12 @@ func RateLimiter(c *cache.Client, rpm int, window time.Duration, keyPrefix strin
 			// Fail open to avoid blocking legitimate requests, but emit a
 			// warn-level log so operators can detect and alert on degradation.
 			log.Warn().Err(err).Str("key_prefix", keyPrefix).Str("client_ip", clientIP).
-				Msg("rate limiter: Redis error, failing open")
+				Msg("rate limiter: Redis error")
+			if failClosed {
+				response.Error(ctx, apperrors.ErrServiceUnavailable("rate limit store unavailable"))
+				ctx.Abort()
+				return
+			}
 			ctx.Next()
 			return
 		}
@@ -71,5 +80,5 @@ func RateLimitMiddleware(cfg *config.RateLimitConfig, redisClient *cache.Client,
 		window = time.Minute
 	}
 
-	return RateLimiter(redisClient, rpm, window, prefix)
+	return rateLimiter(redisClient, rpm, window, prefix, authRPM)
 }

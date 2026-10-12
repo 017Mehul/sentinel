@@ -199,9 +199,12 @@ func (s *Service) HandleCallback(ctx context.Context, provider, code, state, ipA
 	if s.cache == nil {
 		return nil, apperrors.ErrServiceUnavailable("cache unavailable: cannot validate OAuth state parameter")
 	}
+	if state == "" || code == "" {
+		return nil, apperrors.ErrOAuthStateInvalid()
+	}
 	storedProvider, err := s.cache.Get(ctx, "oauth_state:"+state)
 	if err != nil || storedProvider != provider {
-		return nil, apperrors.ErrResetTokenInvalid()
+		return nil, apperrors.ErrOAuthStateInvalid()
 	}
 	_ = s.cache.Delete(ctx, "oauth_state:"+state)
 

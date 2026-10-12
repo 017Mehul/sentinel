@@ -151,6 +151,8 @@ services:
       SMTP_FROM_EMAIL: noreply@sentinel.local
       SMTP_TLS_ENABLED: "false"
     restart: unless-stopped
+    healthcheck:
+      disable: true
 
 volumes:
   pgdata:

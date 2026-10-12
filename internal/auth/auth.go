@@ -192,9 +192,12 @@ func (r *Repository) RevokeRefreshTokenByID(ctx context.Context, tx dbTX, id str
 	if tx == nil {
 		tx = r.db
 	}
-	_, err := tx.Exec(ctx, `UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = $1 AND revoked_at IS NULL`, id)
+	ct, err := tx.Exec(ctx, `UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = $1 AND revoked_at IS NULL`, id)
 	if err != nil {
 		return fmt.Errorf("revoking refresh token: %w", err)
+	}
+	if ct.RowsAffected() != 1 {
+		return apperrors.ErrConcurrentRefresh()
 	}
 	return nil
 }

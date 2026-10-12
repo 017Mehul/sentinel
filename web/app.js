@@ -19,6 +19,7 @@
         if (!res.ok || !payload.access_token) return false;
         state.accessToken=payload.access_token;
         state.refreshToken=payload.refresh_token||state.refreshToken;
+        state.csrfToken=payload.csrf_token||state.csrfToken;
         return true;
       } catch { return false; }
       finally { state.refreshing=null; }

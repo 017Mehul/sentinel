@@ -461,6 +461,13 @@ func (s *Service) Refresh(ctx context.Context, refreshToken, ipAddress, userAgen
 	if err != nil {
 		return nil, err
 	}
+	// The database session is revoked during rotation; remove the matching
+	// cache entry as well so the previous access token stops working promptly.
+	if s.cache != nil && rec.SessionID != "" {
+		if err := s.cache.Delete(ctx, "session:"+rec.SessionID); err != nil {
+			return nil, fmt.Errorf("invalidating rotated session cache: %w", err)
+		}
+	}
 	return response, nil
 }
 

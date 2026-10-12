@@ -74,7 +74,6 @@ func main() {
 		}
 	}()
 
-	go app.Workers.Start()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -104,7 +103,6 @@ func main() {
 		app.GRPCServer.Stop()
 	}
 
-	app.Workers.Stop()
 	l.Info().Msg("auth service stopped cleanly")
 }
 

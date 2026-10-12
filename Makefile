@@ -2,7 +2,7 @@
         docker-up docker-down docker-build clean gen-keys help
 
 # ── Variables ──────────────────────────────────────────────────────────────────
-BINARY_AUTH        := bin/auth-service
+BINARY_AUTH        := bin/sentinel
 BINARY_WORKER      := bin/worker
 
 CMD_AUTH           := ./cmd/server

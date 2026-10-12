@@ -90,7 +90,7 @@ func loadKeyPair(privatePath, publicPath string) (*rsa.PrivateKey, *rsa.PublicKe
 		return privateKey, &privateKey.PublicKey, nil
 	}
 
-	privPEM, err := os.ReadFile(privatePath)
+	privPEM, err := os.ReadFile(privatePath) // #nosec G304 -- key paths are trusted server configuration, not request-controlled input
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return nil, nil, fmt.Errorf("reading private key: %w", err)
@@ -124,7 +124,7 @@ func loadKeyPair(privatePath, publicPath string) (*rsa.PrivateKey, *rsa.PublicKe
 }
 
 func loadPublicKey(path string) (*rsa.PublicKey, error) {
-	pubPEM, err := os.ReadFile(path)
+	pubPEM, err := os.ReadFile(path) // #nosec G304 -- key paths are trusted server configuration, not request-controlled input
 	if err != nil {
 		return nil, fmt.Errorf("reading public key: %w", err)
 	}

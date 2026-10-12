@@ -30,7 +30,7 @@
     let b=$("#connectButton"); if(!b){b=document.createElement("button");b.id="connectButton";b.className="connect-button";$(".top-actions")?.prepend(b);b.addEventListener("click",()=>state.accessToken ? disconnect() : showConnectDialog());}
     b.textContent=connected?"Disconnect":"Connect API";
   }
-  function disconnect(){state.accessToken="";state.refreshToken="";state.user=null;state.roles=[];state.sessions=[];state.audit=[];state.permissions=[];setConnection(false);toast("API disconnected. No tokens were persisted.");}
+  function disconnect(){state.accessToken="";state.refreshToken="";state.user=null;state.roles=[];state.sessions=[];state.audit=[];state.permissions=[];toast("API disconnected. No tokens were persisted.");setTimeout(()=>window.location.reload(),350);}
   function renderUserIdentity() {
     const u=state.user;if(!u)return;
     const name=u.full_name||u.email||"Authenticated user";

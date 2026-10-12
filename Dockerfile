@@ -6,9 +6,10 @@ RUN apk add --no-cache ca-certificates git
 
 COPY go.mod ./
 COPY . .
-RUN go mod tidy && go mod download
+RUN go mod download
 
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/sentinel ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/sentinel ./cmd/server \
+    && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/sentinel-worker ./cmd/worker
 
 FROM alpine:3.22
 
@@ -19,6 +20,7 @@ RUN apk add --no-cache ca-certificates tzdata wget \
 WORKDIR /app
 
 COPY --from=builder /out/sentinel /usr/local/bin/sentinel
+COPY --from=builder /out/sentinel-worker /usr/local/bin/sentinel-worker
 COPY --chown=sentinel:sentinel configs ./configs
 
 USER sentinel

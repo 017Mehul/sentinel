@@ -91,7 +91,7 @@
     const body=$("#usersTable"); if(!body)return;
     body.innerHTML=state.users.length?state.users.slice(0,5).map(u=>{
       const name=u.full_name||u.email||"User";
-      const initials=name.split(/[\\s@._-]+/).filter(Boolean).slice(0,2).map(x=>x[0].toUpperCase()).join("")||"U";
+      const initials=name.split(/[\s@._-]+/).filter(Boolean).slice(0,2).map(x=>x[0].toUpperCase()).join("")||"U";
       const roleNames=(u.roles||[]).join(", ")||"No roles";
       const status=u.is_locked?"Locked":u.is_verified?"Verified":"Unverified";
       const mfaStatus=state.user&&u.id===state.user.id?(state.mfa.enabled?"Enabled":"Disabled"):"—";
@@ -119,7 +119,7 @@
     if(mfa.status==="fulfilled")state.mfa={enabled:!!mfa.value.enabled,configured:!!mfa.value.configured};
     state.health={live:healthz.status==="fulfilled",ready:health.status==="fulfilled",version:version.status==="fulfilled"?version.value:null};
     const statusPill=$(".system-status .status-pill"); if(statusPill)statusPill.textContent=state.health.live&&state.health.ready?"● API and dependencies ready":state.health.live?"● API responding; dependencies not ready":"● API not responding";
-    const statusRows=$(".system-status .system-list div");
+    const statusRows=$$(".system-status .system-list div");
     if(statusRows[0]?.querySelector("b"))statusRows[0].querySelector("b").textContent=state.health.live?"● Responding":"● Not responding";
     if(statusRows[1]?.querySelector("b"))statusRows[1].querySelector("b").textContent=state.health.ready?"● Ready":"● Not ready";
     if(statusRows[2]?.querySelector("b"))statusRows[2].querySelector("b").textContent="● Configuration not exposed";

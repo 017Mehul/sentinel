@@ -2,10 +2,10 @@ package cache
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"crypto/tls"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -30,7 +30,9 @@ func NewRedisClient(cfg *config.RedisConfig) (*Client, error) {
 		ReadTimeout:  cfg.ReadTimeout,
 		WriteTimeout: cfg.WriteTimeout,
 	}
-	if cfg.TLSEnabled { options.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12} }
+	if cfg.TLSEnabled {
+		options.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	}
 	rdb := redis.NewClient(options)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

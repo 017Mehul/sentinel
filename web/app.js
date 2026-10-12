@@ -94,7 +94,10 @@
     if(sessions.status==="fulfilled")state.sessions=value(sessions,"sessions");
     if(roles.status==="fulfilled")state.rolesData=value(roles,"roles");
     if(permissions.status==="fulfilled")state.permissions=value(permissions,"permissions");
-    if(audit.status==="fulfilled")state.audit=value(audit,"audit_logs");\n    if(users.status==="fulfilled")state.users=value(users,"users");\n    if(mfa.status==="fulfilled")state.mfa={enabled:!!mfa.value.enabled,configured:!!mfa.value.configured};\n    if(health.status==="fulfilled")state.health={ready:true,version:version.status==="fulfilled"?version.value:null}; else state.health={ready:false};
+    if(audit.status==="fulfilled")state.audit=value(audit,"audit_logs");
+    if(users.status==="fulfilled")state.users=value(users,"users");
+    if(mfa.status==="fulfilled")state.mfa={enabled:!!mfa.value.enabled,configured:!!mfa.value.configured};
+    if(health.status==="fulfilled")state.health={ready:true,version:version.status==="fulfilled"?version.value:null}; else state.health={ready:false};
     if(me.status==="rejected")toast("Signed in, but profile could not load: "+me.reason.message);
     renderUserIdentity();renderSessions();renderAudit();renderRoles();renderPermissions();
     const cards=$(".metric-card");
@@ -191,7 +194,8 @@
     $(".profile-btn")?.addEventListener("click",()=>state.accessToken?disconnect():showConnectDialog());
     const search=$("#globalSearch");search?.addEventListener("keydown",e=>{if(e.key==="Enter"&&search.value.trim()){const q=search.value.trim().toLowerCase();const match=state.audit.find(a=>JSON.stringify(a).toLowerCase().includes(q));toast(match?"Matching audit event found: "+(match.action||"event"):"Search is limited to data currently loaded in this console.");}});
     document.addEventListener("keydown",e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k"){e.preventDefault();search?.focus();}});
-    setPage("overview");\n    if(state.base)toast("API URL configured. Select Connect API to sign in.");
+    setPage("overview");
+    if(state.base)toast("API URL configured. Select Connect API to sign in.");
   });
   window.SentinelConsole={connect:showConnectDialog,disconnect,refresh:loadLiveData,revokeCurrentSession};
 })();

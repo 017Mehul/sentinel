@@ -4,8 +4,10 @@
   "version": "1.0.0",
   "description": "Static web console for Sentinel IAM",
   "scripts": {
-    "check": "node --check web/app.js && node --check web/tests/connected-screenshot.mjs",
+    "check": "node --check web/app.js && node --check web/api-docs.js && node --check web/build-config.mjs && node --check web/tests/connected-screenshot.mjs && node web/tests/smoke.mjs",
     "test": "npm run check"
   },
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22"
+  }
 }

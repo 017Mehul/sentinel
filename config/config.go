@@ -303,7 +303,13 @@ func validate(cfg *Config) error {
 		if cfg.SMTP.Username == "" || isPlaceholderSecret(cfg.SMTP.Username) || len(cfg.SMTP.Password) < 16 || isPlaceholderSecret(cfg.SMTP.Password) {
 			errs = append(errs, "smtp.username and smtp.password must be configured in production")
 		}
-		if cfg.OAuth.Google.ClientID != "" && isPlaceholderSecret(cfg.OAuth.Google.ClientSecret) {\n\t\t\terrs = append(errs, "google OAuth client secret must not be a placeholder in production")\n\t\t}\n\t\tif cfg.OAuth.GitHub.ClientID != "" && isPlaceholderSecret(cfg.OAuth.GitHub.ClientSecret) {\n\t\t\terrs = append(errs, "github OAuth client secret must not be a placeholder in production")\n\t\t}\n\t\tif (cfg.OAuth.Google.ClientID == "") != (cfg.OAuth.Google.ClientSecret == "") {
+		if cfg.OAuth.Google.ClientID != "" && isPlaceholderSecret(cfg.OAuth.Google.ClientSecret) {
+			errs = append(errs, "google OAuth client secret must not be a placeholder in production")
+		}
+		if cfg.OAuth.GitHub.ClientID != "" && isPlaceholderSecret(cfg.OAuth.GitHub.ClientSecret) {
+			errs = append(errs, "github OAuth client secret must not be a placeholder in production")
+		}
+		if (cfg.OAuth.Google.ClientID == "") != (cfg.OAuth.Google.ClientSecret == "") {
 			errs = append(errs, "google OAuth client ID and secret must be configured together")
 		}
 		if (cfg.OAuth.GitHub.ClientID == "") != (cfg.OAuth.GitHub.ClientSecret == "") {

@@ -158,8 +158,8 @@
     const statusRows=$$(".system-status .system-list div");
     if(statusRows[0]?.querySelector("b"))statusRows[0].querySelector("b").textContent=state.health.live?"● Responding":"● Not responding";
     if(statusRows[1]?.querySelector("b"))statusRows[1].querySelector("b").textContent=state.health.ready?"● Ready":"● Not ready";
-    if(statusRows[2]?.querySelector("b"))statusRows[2].querySelector("b").textContent="● Configuration not exposed";
-    if(statusRows[3]?.querySelector("b"))statusRows[3].querySelector("b").textContent="● Configuration not exposed";
+    if(statusRows[2]?.querySelector("b"))statusRows[2].querySelector("b").textContent=state.health.version?.version||state.health.version?.data?.version||"Unknown";
+    if(statusRows[3]?.querySelector("b"))statusRows[3].querySelector("b").textContent=state.mfa.enabled?"● Enabled":"● Not enabled";
 
     if(me.status==="rejected")toast("Signed in, but profile could not load: "+me.reason.message);
     renderUserIdentity();renderSessions();renderAudit();renderRoles();renderPermissions();renderOverviewUsers();renderOverviewAudit();
@@ -230,7 +230,7 @@
   }
   async function loadAdminSessions() {
     const data=await request("/api/v1/admin/sessions");
-    state.sessions=data.sessions||[];
+    state.sessions=data.sessions||[]; state.adminSessionView=true;
     renderSessions();
   }
   async function revokeAdminSession(id) {
@@ -238,7 +238,7 @@
     if(!window.confirm("Revoke this user's session? This immediately signs that session out."))return;
     try {
       await request("/api/v1/admin/sessions/"+encodeURIComponent(id),{method:"DELETE"});
-      state.sessions=state.sessions.filter(s=>String(s.id)!==String(id));
+      state.sessions=state.sessions.filter(s=>String(s.id||s.session_id)!==String(id));
       renderSessions(); toast("Session revoked.");
     } catch(err) { toast("Session revocation failed: "+err.message); }
   }

@@ -17,14 +17,14 @@ import (
 	"golang.org/x/oauth2/github"
 	"golang.org/x/oauth2/google"
 
-	"github.com/MehulChamoli/auth-service/config"
-	"github.com/MehulChamoli/auth-service/internal/user"
-	"github.com/MehulChamoli/auth-service/internal/shared/dbtx"
-	apperrors "github.com/MehulChamoli/auth-service/internal/shared/errors"
-	"github.com/MehulChamoli/auth-service/internal/shared/response"
-	"github.com/MehulChamoli/auth-service/pkg/cache"
-	"github.com/MehulChamoli/auth-service/pkg/crypto"
-	"github.com/MehulChamoli/auth-service/pkg/token"
+	"github.com/017Mehul/sentinel/config"
+	"github.com/017Mehul/sentinel/internal/user"
+	"github.com/017Mehul/sentinel/internal/shared/dbtx"
+	apperrors "github.com/017Mehul/sentinel/internal/shared/errors"
+	"github.com/017Mehul/sentinel/internal/shared/response"
+	"github.com/017Mehul/sentinel/pkg/cache"
+	"github.com/017Mehul/sentinel/pkg/crypto"
+	"github.com/017Mehul/sentinel/pkg/token"
 )
 
 // dbTX aliases the shared transaction interface so existing code needs no changes.

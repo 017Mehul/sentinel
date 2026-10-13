@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/MehulChamoli/auth-service/pkg/crypto"
+	"github.com/017Mehul/sentinel/pkg/crypto"
 )
 
 func TestGenerateBackupCodes_Count(t *testing.T) {

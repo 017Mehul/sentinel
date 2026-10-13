@@ -301,7 +301,7 @@
     $$(".nav-item").forEach(b=>b.addEventListener("click",()=>setPage(b.dataset.page)));
     $$("[data-page-jump]").forEach(b=>b.addEventListener("click",()=>setPage(b.dataset.pageJump)));
     document.addEventListener("click",e=>{const revoke=e.target.closest("[data-revoke-session]");if(revoke){e.preventDefault();revokeAdminSession(revoke.dataset.revokeSession);}});
-    $("[data-action]").forEach(b=>b.addEventListener("click",()=>{const a=b.dataset.action;if(a==="docs")window.open("https://github.com/017Mehul/sentinel","_blank","noopener");else if(a==="add-user")toast("User creation endpoint is not exposed by the current API.");else if(a==="revoke-current-session")revokeCurrentSession();else setPage(a)}));
+    $$("[data-action]").forEach(b=>b.addEventListener("click",()=>{const a=b.dataset.action;if(a==="docs")window.open("https://github.com/017Mehul/sentinel","_blank","noopener");else if(a==="add-user")toast("User creation endpoint is not exposed by the current API.");else if(a==="revoke-current-session")revokeCurrentSession();else setPage(a)}));
     $(".select-btn")?.addEventListener("click",()=>toast("Time range filtering is not exposed by the current API."));
     $(".profile-btn")?.addEventListener("click",()=>state.accessToken?disconnect():showConnectDialog());
     const search=$("#globalSearch");search?.addEventListener("keydown",e=>{if(e.key==="Enter"&&search.value.trim()){const q=search.value.trim().toLowerCase();const match=state.audit.find(a=>JSON.stringify(a).toLowerCase().includes(q));toast(match?"Matching audit event found: "+(match.action||"event"):"Search is limited to data currently loaded in this console.");}});

@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const state = { base: (window.SENTINEL_API_BASE || "").replace(/\/$/, ""), accessToken: "", refreshToken: "", csrfToken: "", user: null, roles: [], sessions: [], audit: [], permissions: [], rolesData: [], users: [], adminSessionView: false, mfa: {enabled:false,configured:false}, health: null, mfaSetup: null, refreshing: null };
+  const state = { base: (window.SENTINEL_API_BASE || "").replace(/\/$/, ""), accessToken: "", refreshToken: "", csrfToken: "", user: null, roles: [], sessions: [], mySessions: [], adminSessions: [], audit: [], permissions: [], rolesData: [], users: [], adminSessionView: false, mfa: {enabled:false,configured:false}, health: null, mfaSetup: null, refreshing: null };
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => [...document.querySelectorAll(s)];
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
@@ -67,7 +67,7 @@
     let b=$("#connectButton"); if(!b){b=document.createElement("button");b.id="connectButton";b.className="connect-button";$(".top-actions")?.prepend(b);b.addEventListener("click",()=>state.accessToken ? disconnect() : showConnectDialog());}
     b.textContent=connected?"Disconnect":"Connect API";
   }
-  function disconnect(){state.accessToken="";state.refreshToken="";state.csrfToken="";state.user=null;state.roles=[];state.sessions=[];state.audit=[];state.permissions=[];state.rolesData=[];state.users=[];state.adminSessionView=false;state.mfa={enabled:false,configured:false};state.health=null;toast("API disconnected. No tokens were persisted.");setTimeout(()=>window.location.reload(),350);}
+  function disconnect(){state.accessToken="";state.refreshToken="";state.csrfToken="";state.user=null;state.roles=[];state.sessions=[];state.mySessions=[];state.adminSessions=[];state.audit=[];state.permissions=[];state.rolesData=[];state.users=[];state.adminSessionView=false;state.mfa={enabled:false,configured:false};state.health=null;toast("API disconnected. No tokens were persisted.");setTimeout(()=>window.location.reload(),350);}
   function renderUserIdentity() {
     const u=state.user;if(!u)return;
     const name=u.full_name||u.email||"Authenticated user";
@@ -138,7 +138,7 @@
     ]);
     const value=(result,key)=>result.status==="fulfilled"?(result.value[key]??result.value):[];
     if(me.status==="fulfilled")state.user=me.value.user||me.value;
-    state.adminSessionView=adminSessions.status==="fulfilled"; if(state.adminSessionView)state.sessions=value(adminSessions,"sessions"); else if(mySessions.status==="fulfilled")state.sessions=value(mySessions,"sessions");
+    state.mySessions=mySessions.status==="fulfilled"?value(mySessions,"sessions"):[]; state.adminSessionView=adminSessions.status==="fulfilled"; state.adminSessions=state.adminSessionView?value(adminSessions,"sessions"):[]; state.sessions=state.adminSessionView?state.adminSessions:state.mySessions;
     if(roles.status==="fulfilled")state.rolesData=value(roles,"roles");
     if(permissions.status==="fulfilled")state.permissions=value(permissions,"permissions");
     if(audit.status==="fulfilled")state.audit=value(audit,"audit_logs");
@@ -157,7 +157,7 @@
     renderUserIdentity();renderSessions();renderAudit();renderRoles();renderPermissions();renderOverviewUsers();renderOverviewAudit();
     const cards=$$(".metric-card");
     if(cards[0]){const label=cards[0].querySelector(".metric-label"),value=cards[0].querySelector("strong"),note=cards[0].querySelector("small");if(label)label.textContent="Signed-in Identity";if(value)value.textContent=state.user?"1":"—";if(note)note.innerHTML="Authenticated <em>current account only</em>";}
-    if(cards[1]){const label=cards[1].querySelector(".metric-label"),value=cards[1].querySelector("strong"),note=cards[1].querySelector("small");if(label)label.textContent="My Active Sessions";if(value)value.textContent=String(state.sessions.length);if(note)note.innerHTML="From API <em>visible to this account</em>";}
+    if(cards[1]){const label=cards[1].querySelector(".metric-label"),value=cards[1].querySelector("strong"),note=cards[1].querySelector("small");if(label)label.textContent="My Active Sessions";if(value)value.textContent=String(state.mySessions.length);if(note)note.innerHTML="From API <em>current identity only</em>";}
     if(cards[2]){const label=cards[2].querySelector(".metric-label"),value=cards[2].querySelector("strong"),note=cards[2].querySelector("small");if(label)label.textContent="Failure Events Loaded";if(value)value.textContent=String(state.audit.filter(a=>/fail|denied|blocked/i.test(a.action||"")).length);if(note)note.innerHTML="Audit sample <em>not a time-series total</em>";}
     if(cards[3]){const label=cards[3].querySelector(".metric-label"),value=cards[3].querySelector("strong"),note=cards[3].querySelector("small");if(label)label.textContent="MFA for Account";if(value)value.textContent=state.mfa.enabled?"Enabled":"Disabled";if(note)note.textContent=state.mfa.configured?"Factor configured":"No factor configured";}
     const userHead=$(".tables-grid .table-panel .panel-head h2");if(userHead)userHead.textContent="Recent Users";

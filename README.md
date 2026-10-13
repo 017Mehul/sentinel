@@ -65,6 +65,8 @@ cd sentinel
 
 go mod tidy
 cp .env.example .env
+# Edit .env: set DB_PASSWORD, OAUTH_STATE_SECRET, and a 32-character AES_ENCRYPTION_KEY.
+# These example values are for local development only.
 
 # generate RSA key pair
 make gen-keys
@@ -173,7 +175,7 @@ make security            # gosec + govulncheck
 
 ---
 
-> **Go module compatibility note:** the module path remains `github.com/MehulChamoli/auth-service` because source imports and protobuf generation options still reference it. A module-path rename is intentionally deferred until every import and generated binding can be migrated and verified together; all user-facing service, container, and binary names use Sentinel.
+The Go module path, imports, protobuf generation options, container names, and binaries are standardized on Sentinel (`github.com/017Mehul/sentinel`).
 
 ## Project layout
 

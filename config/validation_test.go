@@ -57,9 +57,10 @@ func TestProductionConfigRejectsWeakSecrets(t *testing.T) {
 	cfg := validProductionConfig(t)
 	cfg.Database.Password = "changeme"
 	cfg.OAuth.StateSecret = "changeme-oauth-state-hmac-secret"
+	cfg.SMTP.Password = "changeme-smtp-password"
 
 	err := validate(cfg)
-	if err == nil || !strings.Contains(err.Error(), "database.password") || !strings.Contains(err.Error(), "oauth.state_secret") {
+	if err == nil || !strings.Contains(err.Error(), "database.password") || !strings.Contains(err.Error(), "oauth.state_secret") || !strings.Contains(err.Error(), "smtp.username and smtp.password") {
 		t.Fatalf("expected database and OAuth placeholder errors, got: %v", err)
 	}
 }

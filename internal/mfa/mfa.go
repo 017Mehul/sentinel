@@ -13,13 +13,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pquerna/otp/totp"
 	"github.com/skip2/go-qrcode"
-	"github.com/MehulChamoli/auth-service/config"
-	"github.com/MehulChamoli/auth-service/internal/shared/contextkeys"
-	"github.com/MehulChamoli/auth-service/internal/shared/dbtx"
-	apperrors "github.com/MehulChamoli/auth-service/internal/shared/errors"
-	"github.com/MehulChamoli/auth-service/internal/shared/response"
-	"github.com/MehulChamoli/auth-service/internal/user"
-	"github.com/MehulChamoli/auth-service/pkg/crypto"
+	"github.com/017Mehul/sentinel/config"
+	"github.com/017Mehul/sentinel/internal/shared/contextkeys"
+	"github.com/017Mehul/sentinel/internal/shared/dbtx"
+	apperrors "github.com/017Mehul/sentinel/internal/shared/errors"
+	"github.com/017Mehul/sentinel/internal/shared/response"
+	"github.com/017Mehul/sentinel/internal/user"
+	"github.com/017Mehul/sentinel/pkg/crypto"
 )
 
 // dbTX aliases the shared transaction interface so existing code needs no changes.

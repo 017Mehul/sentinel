@@ -120,6 +120,14 @@ jobs:
         run: |
           go test -coverprofile=coverage.out -covermode=atomic ./...
           go tool cover -func=coverage.out | tee coverage-summary.txt
+          total="$(awk '/^total:/ {print $3}' coverage-summary.txt)"
+          {
+            echo "## Go test coverage"
+            echo ""
+            echo "**Total statement coverage:** $total"
+            echo ""
+            echo 'See the `sentinel-coverage` artifact for the detailed per-function report.'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
         with:

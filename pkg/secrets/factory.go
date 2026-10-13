@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/MehulChamoli/auth-service/config"
+	"github.com/017Mehul/sentinel/config"
 )
 
 // NewProvider is a factory that returns the configured SecretProvider based on

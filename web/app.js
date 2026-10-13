@@ -300,7 +300,6 @@
   document.addEventListener("DOMContentLoaded",()=>{buildChart();addDataTables();setConnection(false);
     $$(".nav-item").forEach(b=>b.addEventListener("click",()=>setPage(b.dataset.page)));
     $$("[data-page-jump]").forEach(b=>b.addEventListener("click",()=>setPage(b.dataset.pageJump)));
-    document.addEventListener("click",e=>{const button=e.target.closest("[data-feature-action]");if(button){e.preventDefault();runFeatureAction(button.dataset.featureAction,button);}});
     document.addEventListener("click",e=>{const revoke=e.target.closest("[data-revoke-session]");if(revoke){e.preventDefault();revokeAdminSession(revoke.dataset.revokeSession);}});
     $("[data-action]").forEach(b=>b.addEventListener("click",()=>{const a=b.dataset.action;if(a==="docs")window.open("https://github.com/017Mehul/sentinel","_blank","noopener");else if(a==="add-user")toast("User creation endpoint is not exposed by the current API.");else if(a==="revoke-current-session")revokeCurrentSession();else setPage(a)}));
     $(".select-btn")?.addEventListener("click",()=>toast("Time range filtering is not exposed by the current API."));

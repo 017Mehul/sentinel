@@ -208,6 +208,20 @@
       } catch(err) { if(error)error.textContent=err.message; toast("Profile update failed: "+err.message); }
     });
   }
+  async function loadAdminSessions() {
+    const data=await request("/api/v1/admin/sessions");
+    state.sessions=data.sessions||[];
+    renderSessions();
+  }
+  async function revokeAdminSession(id) {
+    if(!id)return toast("Missing session ID.");
+    if(!window.confirm("Revoke this user's session? This immediately signs that session out."))return;
+    try {
+      await request("/api/v1/admin/sessions/"+encodeURIComponent(id),{method:"DELETE"});
+      state.sessions=state.sessions.filter(s=>String(s.id)!==String(id));
+      renderSessions(); toast("Session revoked.");
+    } catch(err) { toast("Session revocation failed: "+err.message); }
+  }
   async function runFeatureAction(action,button) {
     try {
       if(action==="mfa-setup") {
@@ -290,7 +304,8 @@
     $$(".nav-item").forEach(b=>b.addEventListener("click",()=>setPage(b.dataset.page)));
     $$("[data-page-jump]").forEach(b=>b.addEventListener("click",()=>setPage(b.dataset.pageJump)));
     document.addEventListener("click",e=>{const button=e.target.closest("[data-feature-action]");if(button){e.preventDefault();runFeatureAction(button.dataset.featureAction,button);}});
-    $$("[data-action]").forEach(b=>b.addEventListener("click",()=>{const a=b.dataset.action;if(a==="docs")window.open("https://github.com/017Mehul/sentinel","_blank","noopener");else if(a==="add-user")toast("User creation endpoint is not exposed by the current API.");else if(a==="revoke-current-session")revokeCurrentSession();else setPage(a)}));
+    document.addEventListener("click",e=>{const revoke=e.target.closest("[data-revoke-session]");if(revoke){e.preventDefault();revokeAdminSession(revoke.dataset.revokeSession);}});
+    $("[data-action]").forEach(b=>b.addEventListener("click",()=>{const a=b.dataset.action;if(a==="docs")window.open("https://github.com/017Mehul/sentinel","_blank","noopener");else if(a==="add-user")toast("User creation endpoint is not exposed by the current API.");else if(a==="revoke-current-session")revokeCurrentSession();else setPage(a)}));
     $(".select-btn")?.addEventListener("click",()=>toast("Time range filtering is not exposed by the current API."));
     $(".profile-btn")?.addEventListener("click",()=>state.accessToken?disconnect():showConnectDialog());
     const search=$("#globalSearch");search?.addEventListener("keydown",e=>{if(e.key==="Enter"&&search.value.trim()){const q=search.value.trim().toLowerCase();const match=state.audit.find(a=>JSON.stringify(a).toLowerCase().includes(q));toast(match?"Matching audit event found: "+(match.action||"event"):"Search is limited to data currently loaded in this console.");}});
@@ -298,5 +313,5 @@
     setPage("overview");
     if(state.base)toast("API URL configured. Select Connect API to sign in.");
   });
-  window.SentinelConsole={connect:showConnectDialog,disconnect,refresh:loadLiveData,revokeCurrentSession,refreshAccessToken,logoutSession};
+  window.SentinelConsole={connect:showConnectDialog,disconnect,refresh:loadLiveData,revokeCurrentSession,refreshAccessToken,logoutSession,loadAdminSessions,revokeAdminSession};
 })();

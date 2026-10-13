@@ -6,16 +6,16 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/MehulChamoli/auth-service/config"
-	"github.com/MehulChamoli/auth-service/internal/auth"
-	authv1 "github.com/MehulChamoli/auth-service/proto/auth/v1"
+	"github.com/017Mehul/sentinel/config"
+	"github.com/017Mehul/sentinel/internal/auth"
+	authv1 "github.com/017Mehul/sentinel/proto/auth/v1"
 		"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
-	"github.com/MehulChamoli/auth-service/pkg/token"
+	"github.com/017Mehul/sentinel/pkg/token"
 )
 
 type Server struct{ *grpc.Server }

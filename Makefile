@@ -1,5 +1,5 @@
 .PHONY: all build run test lint wire sqlc proto migrate-up migrate-down \
-        docker-up docker-down docker-reset docker-build clean gen-keys help
+        docker-up docker-down docker-reset docker-logs docker-build clean gen-keys help
 
 # ── Variables ──────────────────────────────────────────────────────────────────
 ifneq ($(wildcard .env),)

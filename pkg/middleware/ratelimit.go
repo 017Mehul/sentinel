@@ -8,10 +8,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
-	"github.com/MehulChamoli/auth-service/config"
-	apperrors "github.com/MehulChamoli/auth-service/internal/shared/errors"
-	"github.com/MehulChamoli/auth-service/internal/shared/response"
-	"github.com/MehulChamoli/auth-service/pkg/cache"
+	"github.com/017Mehul/sentinel/config"
+	apperrors "github.com/017Mehul/sentinel/internal/shared/errors"
+	"github.com/017Mehul/sentinel/internal/shared/response"
+	"github.com/017Mehul/sentinel/pkg/cache"
 )
 
 // RateLimiter creates a rate limiting middleware using Redis.

@@ -164,7 +164,7 @@ docker-reset:
 	$(DOCKER_COMPOSE) down -v
 
 docker-logs:
-	$(DOCKER_COMPOSE) logs -f auth worker postgres redis mailpit migrate
+	$(DOCKER_COMPOSE) logs -f api worker postgres redis mailpit migrate jaeger
 
 # ── Cleanup ────────────────────────────────────────────────────────────────────
 
@@ -199,6 +199,6 @@ help:
 	@echo "  make lint           Run golangci-lint"
 	@echo "  make security       Run gosec + govulncheck"
 	@echo "  make docker-up      Start full Docker stack"
-	@echo "  make docker-down    Stop Docker stack"
+	@echo "  make docker-down    Stop Docker stack (preserve data)"
 	@echo "  make clean          Remove build artifacts"
 	@echo ""

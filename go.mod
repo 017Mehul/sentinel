@@ -1,4 +1,4 @@
-module github.com/MehulChamoli/auth-service
+module github.com/017Mehul/sentinel
 
 go 1.26.9
 

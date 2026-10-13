@@ -34,3 +34,18 @@ Never paste secrets into GitHub issues, README files, screenshots, or chat logs.
 ## Connected screenshot
 
 A real connected screenshot is not committed as sample art. Run the manual Connected Console Screenshot GitHub Actions workflow after a reachable API and a dedicated demo account exist. Store SENTINEL_API_BASE, SENTINEL_DEMO_EMAIL, and SENTINEL_DEMO_PASSWORD as protected repository secrets. The workflow fails instead of capturing a screenshot if login and the live API connection indicator do not succeed.
+
+## Static console deployment (Vercel)
+
+The repository includes a manual GitHub Actions workflow named **Deploy Web Console to Vercel**. It deploys only the static frontend; it does not provision or deploy the Go API.
+
+Configure the following before running it:
+
+- Repository secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`.
+- Repository variable: `SENTINEL_API_BASE`, set to the deployed API's HTTPS origin (origin only; no path, credentials, query, or fragment).
+- Vercel project root directory: `web`, with production deployment permissions enabled for the token.
+- The API's CORS allowlist must include the exact deployed console origin, and production refresh-cookie requests must allow credentials.
+
+The workflow intentionally fails when any required value is missing or the API origin is not HTTPS. Do not add credentials to `web/config.js`; it is public frontend configuration, not a secret store.
+
+The Go API and outbox worker still need deployment to a container host with managed PostgreSQL and TLS-enabled Redis. Configure those using the production Compose reference or the hosting provider's equivalent. The repository does not currently contain cloud credentials, and no public API deployment is claimed.

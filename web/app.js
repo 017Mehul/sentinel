@@ -8,7 +8,7 @@
   function toast(message) { const el=$("#toast"); if (!el) return; el.textContent=message; el.classList.add("show"); clearTimeout(window.__toast); window.__toast=setTimeout(()=>el.classList.remove("show"),3000); }
   async function refreshAccessToken() {
     if (state.refreshing) return state.refreshing;
-    if (!state.base || (!state.refreshToken && !state.csrfToken)) return false;
+    if (!state.base) return false;
     state.refreshing = (async () => {
       try {
         const options = { method:"POST", credentials:"include", headers:{Accept:"application/json", ...(state.csrfToken?{"X-CSRF-Token":state.csrfToken}:{})} };

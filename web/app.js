@@ -30,7 +30,7 @@
     if (!state.base) throw new Error("Set the Sentinel API base URL first.");
     const headers = { Accept:"application/json", ...(options.body ? {"Content-Type":"application/json"} : {}), ...(state.accessToken ? {Authorization:"Bearer "+state.accessToken} : {}), ...((state.csrfToken && (path.endsWith("/api/v1/auth/refresh") || path.endsWith("/api/v1/auth/logout"))) ? {"X-CSRF-Token":state.csrfToken} : {}), ...(options.headers||{}) };
     const res = await fetch(state.base+path,{...options,headers,credentials:"include"});
-    if (res.status===401 && !retried && state.accessToken && path!=="/api/v1/auth/login" && path!=="/api/v1/auth/refresh") {
+    if (res.status===401 && !retried && state.accessToken && path!=="/api/v1/auth/login" && path!=="/api/v1/auth/refresh" && !options.skipRefresh) {
       if (await refreshAccessToken()) return request(path,options,true);
       state.accessToken=""; state.refreshToken=""; state.csrfToken=""; state.user=null;
     }
@@ -45,7 +45,7 @@
     document.body.append(d); d.showModal();
     if(window.SENTINEL_API_BASE || window.SENTINEL_ALLOW_API_URL_OVERRIDE===false) $("#apiBaseInput").readOnly=true;
     $("#connectSubmit").addEventListener("click",async e=>{e.preventDefault(); const btn=$("#connectSubmit"),err=$("#connectError"); btn.disabled=true;btn.textContent="Connecting…";err.textContent="";
-      try { state.base=$("#apiBaseInput").value.trim().replace(/\/$/,""); if(!state.base) throw new Error("Set the production API URL in web/config.js before connecting."); const apiURL=new URL(state.base); if(!/^https?:$/.test(apiURL.protocol)) throw new Error("Use an HTTP(S) API URL."); if(apiURL.username||apiURL.password||apiURL.search||apiURL.hash||(apiURL.pathname!=="/"&&apiURL.pathname!=="")) throw new Error("Enter an API origin only, without credentials, path, query, or fragment."); if(apiURL.protocol!=="https:" && !["localhost","127.0.0.1"].includes(apiURL.hostname)) throw new Error("HTTPS is required except for localhost development."); state.base=apiURL.origin; const login=await request("/api/v1/auth/login",{method:"POST",body:JSON.stringify({email:$("#apiEmail").value.trim(),password:$("#apiPassword").value,mfa_code:$("#apiMfa").value.trim()})}); if(!login.access_token) throw new Error("No access token was returned. The API must return a short-lived access token and keep refresh tokens in HttpOnly cookies."); state.accessToken=login.access_token;state.refreshToken=login.refresh_token||"";state.csrfToken=login.csrf_token||"";state.user=login.user||null;state.roles=login.roles||[];d.close();d.remove();await loadLiveData();toast("Connected to Sentinel API."); }
+      try { state.base=$("#apiBaseInput").value.trim().replace(/\/$/,""); if(!state.base) throw new Error("Set the production API URL in web/config.js before connecting."); const apiURL=new URL(state.base); if(!/^https?:$/.test(apiURL.protocol)) throw new Error("Use an HTTP(S) API URL."); if(apiURL.username||apiURL.password||apiURL.search||apiURL.hash||(apiURL.pathname!=="/"&&apiURL.pathname!=="")) throw new Error("Enter an API origin only, without credentials, path, query, or fragment."); if(apiURL.protocol!=="https:" && !["localhost","127.0.0.1"].includes(apiURL.hostname)) throw new Error("HTTPS is required except for localhost development."); state.base=apiURL.origin; const login=await request("/api/v1/auth/login",{method:"POST",body:JSON.stringify({email:$("#apiEmail").value.trim(),password:$("#apiPassword").value,mfa_code:$("#apiMfa").value.trim()}),credentials:"include"}); if(!login.access_token) throw new Error("No access token was returned. The API must return a short-lived access token and keep refresh tokens in HttpOnly cookies."); state.accessToken=login.access_token;state.refreshToken=login.refresh_token||"";state.csrfToken=login.csrf_token||"";state.user=login.user||null;state.roles=login.roles||[];d.close();d.remove();await loadLiveData();toast("Connected to Sentinel API."); }
       catch(ex){err.textContent=ex.message;btn.disabled=false;btn.textContent="Sign in securely";}
     });
     d.addEventListener("close",()=>d.remove(),{once:true});
@@ -104,6 +104,20 @@
       const failed=/fail|denied|blocked/i.test(a.action||"");
       return '<tr><td>'+esc(relative(a.created_at))+'</td><td>'+esc(a.action||"Event")+'</td><td>'+esc(a.actor_id||a.user_id||"System")+'</td><td>'+esc(a.ip_address||"—")+'</td><td><span class="event '+(failed?"blocked":"success")+'">● '+(failed?"Review":"Recorded")+'</span></td></tr>';
     }).join(""):'<tr><td colspan="5">No audit events returned by the API.</td></tr>';
+  }
+  async function refreshAccessToken() {
+    const payload=await request("/api/v1/auth/refresh",{method:"POST",body:state.refreshToken?JSON.stringify({refresh_token:state.refreshToken}):undefined,skipRefresh:true});
+    if(!payload.access_token)throw new Error("Refresh endpoint did not return an access token.");
+    state.accessToken=payload.access_token;
+    if(payload.refresh_token)state.refreshToken=payload.refresh_token;
+    if(payload.csrf_token)state.csrfToken=payload.csrf_token;
+    return state.accessToken;
+  }
+  async function logoutSession() {
+    if(!state.accessToken)return disconnect();
+    try { await request("/api/v1/auth/logout",{method:"POST",body:state.refreshToken?JSON.stringify({refresh_token:state.refreshToken}):undefined,skipRefresh:true}); }
+    catch(err) { toast("Server logout could not be confirmed: "+err.message); }
+    disconnect();
   }
   async function loadLiveData() {
     const [me,mySessions,adminSessions,roles,permissions,audit,users,mfa,healthz,health,version]=await Promise.allSettled([
@@ -227,5 +241,5 @@
     setPage("overview");
     if(state.base)toast("API URL configured. Select Connect API to sign in.");
   });
-  window.SentinelConsole={connect:showConnectDialog,disconnect,refresh:loadLiveData,revokeCurrentSession};
+  window.SentinelConsole={connect:showConnectDialog,disconnect,refresh:loadLiveData,revokeCurrentSession,refreshAccessToken,logoutSession};
 })();

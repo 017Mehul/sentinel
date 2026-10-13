@@ -52,6 +52,9 @@ Configure the following before running it:
 
 - Repository secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`.
 - Repository variable: `SENTINEL_API_BASE`, set to the deployed API's HTTPS origin (origin only; no path, credentials, query, or fragment).
+- Protected secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`.
+- Repository variable: `VERCEL_CLI_VERSION`, set to an exact reviewed Vercel CLI version.
+- Review the GitHub `production` environment approval rules before running the manual deployment workflow.
 - Vercel project root directory: `web`, with production deployment permissions enabled for the token.
 - The API's CORS allowlist must include the exact deployed console origin, and production refresh-cookie requests must allow credentials.
 

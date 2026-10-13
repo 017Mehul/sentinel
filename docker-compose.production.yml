@@ -1,0 +1,130 @@
+# Production reference stack
+# Expects a TLS-terminating reverse proxy on the external "sentinel-edge" Docker network.
+# Create it first: docker network create sentinel-edge
+# Supply all required variables through a secret manager or protected deployment environment.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${SENTINEL_IMAGE:-ghcr.io/017mehul/sentinel:latest}
+    container_name: sentinel-api
+    restart: unless-stopped
+    expose:
+      - "8080"
+      - "9090"
+    networks:
+      - sentinel-edge
+    environment:
+      APP_ENV: production
+      APP_NAME: sentinel
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+      APP_PORT: 8080
+      GRPC_PORT: 9090
+      SHUTDOWN_TIMEOUT: 30s
+      DB_HOST: ${DB_HOST:?Set managed PostgreSQL host}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:?Set managed PostgreSQL database}
+      DB_USER: ${DB_USER:?Set managed PostgreSQL user}
+      DB_PASSWORD: ${DB_PASSWORD:?Set managed PostgreSQL password}
+      DB_SSL_MODE: ${DB_SSL_MODE:-require}
+      REDIS_ADDR: ${REDIS_ADDR:?Set managed Redis host:port}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set managed Redis password}
+      REDIS_TLS_ENABLED: "true"
+      REDIS_DB: ${REDIS_DB:-0}
+      JWT_PRIVATE_KEY_PATH: /run/secrets/jwt_private_key
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public_key
+      JWT_CURRENT_KEY_ID: ${JWT_CURRENT_KEY_ID:?Set unique JWT key ID}
+      JWT_ACCESS_TOKEN_TTL: ${JWT_ACCESS_TOKEN_TTL:-15m}
+      JWT_REFRESH_TOKEN_TTL: ${JWT_REFRESH_TOKEN_TTL:-720h}
+      JWT_ISSUER: sentinel
+      JWT_AUDIENCE: api
+      SECRET_PROVIDER: local
+      AES_ENCRYPTION_KEY: ${AES_ENCRYPTION_KEY:?Set exactly 32 bytes}
+      OAUTH_STATE_SECRET: ${OAUTH_STATE_SECRET:?Set a strong random OAuth state secret}
+      OAUTH_GOOGLE_CLIENT_ID: ${OAUTH_GOOGLE_CLIENT_ID:-}
+      OAUTH_GOOGLE_CLIENT_SECRET: ${OAUTH_GOOGLE_CLIENT_SECRET:-}
+      OAUTH_GOOGLE_REDIRECT_URL: ${OAUTH_GOOGLE_REDIRECT_URL:?Set HTTPS Google callback URL}
+      OAUTH_GITHUB_CLIENT_ID: ${OAUTH_GITHUB_CLIENT_ID:-}
+      OAUTH_GITHUB_CLIENT_SECRET: ${OAUTH_GITHUB_CLIENT_SECRET:-}
+      OAUTH_GITHUB_REDIRECT_URL: ${OAUTH_GITHUB_REDIRECT_URL:?Set HTTPS GitHub callback URL}
+      SMTP_HOST: ${SMTP_HOST:?Set production SMTP host}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:?Set SMTP username}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:?Set SMTP password}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Sentinel}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:?Set verified sender address}
+      SMTP_TLS_ENABLED: "true"
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?Set exact HTTPS console origin}
+      CORS_ALLOW_CREDENTIALS: "true"
+      TLS_ENABLED: "false"
+      TLS_TERMINATED_BY_PROXY: "true"
+      RATE_LIMIT_ENABLED: "true"
+      RATE_LIMIT_AUTH_RPM: ${RATE_LIMIT_AUTH_RPM:-5}
+      RATE_LIMIT_GENERAL_RPM: ${RATE_LIMIT_GENERAL_RPM:-100}
+      OTEL_ENABLED: ${OTEL_ENABLED:-false}
+      OTEL_SERVICE_NAME: sentinel
+      FEATURE_FLAGS_FILE: /app/configs/feature_flags.yaml
+    secrets:
+      - jwt_private_key
+      - jwt_public_key
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${SENTINEL_IMAGE:-ghcr.io/017mehul/sentinel:latest}
+    container_name: sentinel-worker
+    entrypoint: ["/usr/local/bin/sentinel-worker"]
+    restart: unless-stopped
+    networks:
+      - sentinel-edge
+    environment:
+      APP_ENV: production
+      APP_NAME: sentinel
+      CONFIG_PATH: /app/configs/app.yaml
+      DB_HOST: ${DB_HOST:?Set managed PostgreSQL host}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:?Set managed PostgreSQL database}
+      DB_USER: ${DB_USER:?Set managed PostgreSQL user}
+      DB_PASSWORD: ${DB_PASSWORD:?Set managed PostgreSQL password}
+      DB_SSL_MODE: ${DB_SSL_MODE:-require}
+      REDIS_ADDR: ${REDIS_ADDR:?Set managed Redis host:port}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set managed Redis password}
+      REDIS_TLS_ENABLED: "true"
+      JWT_PRIVATE_KEY_PATH: /run/secrets/jwt_private_key
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public_key
+      JWT_CURRENT_KEY_ID: ${JWT_CURRENT_KEY_ID:?Set unique JWT key ID}
+      AES_ENCRYPTION_KEY: ${AES_ENCRYPTION_KEY:?Set exactly 32 bytes}
+      OAUTH_STATE_SECRET: ${OAUTH_STATE_SECRET:?Set a strong random OAuth state secret}
+      SMTP_HOST: ${SMTP_HOST:?Set production SMTP host}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:?Set SMTP username}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:?Set SMTP password}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Sentinel}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:?Set verified sender address}
+      SMTP_TLS_ENABLED: "true"
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?Set exact HTTPS console origin}
+      TLS_ENABLED: "false"
+      TLS_TERMINATED_BY_PROXY: "true"
+    secrets:
+      - jwt_private_key
+      - jwt_public_key
+    healthcheck:
+      disable: true
+
+networks:
+  sentinel-edge:
+    external: true
+
+secrets:
+  jwt_private_key:
+    file: ${JWT_PRIVATE_KEY_FILE:?Set path to protected JWT private key}
+  jwt_public_key:
+    file: ${JWT_PUBLIC_KEY_FILE:?Set path to JWT public key}

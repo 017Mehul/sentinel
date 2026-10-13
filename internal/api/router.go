@@ -7,20 +7,20 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/MehulChamoli/auth-service/config"
-	"github.com/MehulChamoli/auth-service/internal/admin"
-	"github.com/MehulChamoli/auth-service/internal/auth"
-	"github.com/MehulChamoli/auth-service/internal/mfa"
-	"github.com/MehulChamoli/auth-service/internal/oauth"
-	"github.com/MehulChamoli/auth-service/internal/shared/contextkeys"
-	apperrors "github.com/MehulChamoli/auth-service/internal/shared/errors"
-	"github.com/MehulChamoli/auth-service/internal/shared/response"
-	"github.com/MehulChamoli/auth-service/internal/user"
-	"github.com/MehulChamoli/auth-service/pkg/cache"
-	"github.com/MehulChamoli/auth-service/pkg/database"
-	"github.com/MehulChamoli/auth-service/pkg/metrics"
-	"github.com/MehulChamoli/auth-service/pkg/middleware"
-	"github.com/MehulChamoli/auth-service/pkg/token"
+	"github.com/017Mehul/sentinel/config"
+	"github.com/017Mehul/sentinel/internal/admin"
+	"github.com/017Mehul/sentinel/internal/auth"
+	"github.com/017Mehul/sentinel/internal/mfa"
+	"github.com/017Mehul/sentinel/internal/oauth"
+	"github.com/017Mehul/sentinel/internal/shared/contextkeys"
+	apperrors "github.com/017Mehul/sentinel/internal/shared/errors"
+	"github.com/017Mehul/sentinel/internal/shared/response"
+	"github.com/017Mehul/sentinel/internal/user"
+	"github.com/017Mehul/sentinel/pkg/cache"
+	"github.com/017Mehul/sentinel/pkg/database"
+	"github.com/017Mehul/sentinel/pkg/metrics"
+	"github.com/017Mehul/sentinel/pkg/middleware"
+	"github.com/017Mehul/sentinel/pkg/token"
 )
 
 // Router wraps the Gin engine and mounts the service endpoints.
@@ -132,15 +132,19 @@ func (r *Router) mountAPIRoutes() {
 
 	admin := v1.Group("/admin")
 	admin.Use(r.authMiddleware())
+	admin.GET("/users", r.admin.ListUsers)
 	admin.GET("/roles", r.admin.ListRoles)
 	admin.GET("/permissions", r.admin.ListPermissions)
 	admin.GET("/audit-logs", r.admin.ListAuditLogs)
 	admin.POST("/users/roles", r.admin.AssignRole)
 	admin.DELETE("/users/roles", r.admin.RemoveRole)
+	admin.GET("/sessions", r.auth.AdminListSessions)
+	admin.DELETE("/sessions/:id", r.auth.AdminRevokeSession)
 
 	mfa := v1.Group("/mfa")
 	mfa.Use(middleware.RateLimitMiddleware(&r.cfg.RateLimit, r.redis, true))
 	mfa.Use(r.authMiddleware())
+	mfa.GET("/status", r.mfa.Status)
 	mfa.POST("/setup", r.mfa.Setup)
 	mfa.POST("/enable", r.mfa.Enable)
 	mfa.POST("/disable", r.mfa.Disable)
@@ -168,7 +172,7 @@ func securityHeadersMiddleware(cfg *config.Config) gin.HandlerFunc {
 		c.Header("Referrer-Policy", "no-referrer")
 		c.Header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		c.Header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
-		if cfg.TLS.Enabled {
+		if cfg.TLS.Enabled || cfg.TLS.TerminatedByProxy {
 			c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		}
 		c.Next()
@@ -207,7 +211,7 @@ func corsMiddleware(cfg *config.Config) gin.HandlerFunc {
 				}
 			}
 		}
-		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID")
+		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID, X-CSRF-Token")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
 		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)

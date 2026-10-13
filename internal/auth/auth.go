@@ -2,10 +2,12 @@ package auth
 
 import (
 	"context"
+	subtle "crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"strings"
 	"time"
 
@@ -13,16 +15,16 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/MehulChamoli/auth-service/config"
-	"github.com/MehulChamoli/auth-service/internal/mfa"
-	"github.com/MehulChamoli/auth-service/internal/shared/contextkeys"
-	"github.com/MehulChamoli/auth-service/internal/shared/dbtx"
-	apperrors "github.com/MehulChamoli/auth-service/internal/shared/errors"
-	"github.com/MehulChamoli/auth-service/internal/shared/response"
-	"github.com/MehulChamoli/auth-service/internal/user"
-	"github.com/MehulChamoli/auth-service/pkg/cache"
-	"github.com/MehulChamoli/auth-service/pkg/crypto"
-	"github.com/MehulChamoli/auth-service/pkg/token"
+	"github.com/017Mehul/sentinel/config"
+	"github.com/017Mehul/sentinel/internal/mfa"
+	"github.com/017Mehul/sentinel/internal/shared/contextkeys"
+	"github.com/017Mehul/sentinel/internal/shared/dbtx"
+	apperrors "github.com/017Mehul/sentinel/internal/shared/errors"
+	"github.com/017Mehul/sentinel/internal/shared/response"
+	"github.com/017Mehul/sentinel/internal/user"
+	"github.com/017Mehul/sentinel/pkg/cache"
+	"github.com/017Mehul/sentinel/pkg/crypto"
+	"github.com/017Mehul/sentinel/pkg/token"
 )
 
 // dbTX aliases the shared transaction interface so existing code needs no changes.
@@ -84,6 +86,7 @@ type AuthResponse struct {
 	TokenType    string    `json:"token_type"`
 	ExpiresIn    int       `json:"expires_in"`
 	SessionID    string    `json:"session_id"`
+	CSRFToken    string    `json:"csrf_token,omitempty"`
 }
 
 type RefreshTokenRecord struct {
@@ -714,11 +717,63 @@ func (h *Handler) RevokeCurrentSession(c *gin.Context) {
 	// leave an access token usable because cache invalidation was ignored.
 	if h.svc.cache != nil {
 		if err := h.svc.cache.Delete(c.Request.Context(), "session:"+sid); err != nil {
-			response.Error(c, apperrors.ErrServiceUnavailable("session store unavailable"))
+			response.Error(c, apperrors.ErrServiceUnavailable("session cache invalidation failed"))
 			return
 		}
 	}
 	if err := h.svc.repo.RevokeSessionAndRefreshToken(c.Request.Context(), sid); err != nil { response.Error(c, err); return }
+	response.NoContent(c)
+}
+
+type AdminSessionRecord struct {
+	ID string `json:"id"`
+	UserID string `json:"user_id"`
+	Email string `json:"email"`
+	UserAgent string `json:"user_agent,omitempty"`
+	IPAddress string `json:"ip_address,omitempty"`
+	LastActiveAt time.Time `json:"last_active_at"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (h *Handler) AdminListSessions(c *gin.Context) {
+	roles, _ := c.Get(string(contextkeys.UserRoles))
+	isAdmin := false
+	if roleList, ok := roles.([]string); ok {
+		for _, role := range roleList { if role == "admin" { isAdmin = true; break } }
+	}
+	if !isAdmin { response.Error(c, apperrors.ErrForbidden()); return }
+	rows, err := h.svc.repo.db.Query(c.Request.Context(), "SELECT s.id::text, s.user_id::text, u.email, COALESCE(s.user_agent, ''), COALESCE(host(s.ip_address), ''), s.last_active_at, s.created_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.deleted_at IS NULL ORDER BY s.last_active_at DESC LIMIT 200")
+	if err != nil { response.Error(c, fmt.Errorf("listing admin sessions: %w", err)); return }
+	defer rows.Close()
+	sessions := make([]AdminSessionRecord, 0)
+	for rows.Next() {
+		var item AdminSessionRecord
+		if err := rows.Scan(&item.ID, &item.UserID, &item.Email, &item.UserAgent, &item.IPAddress, &item.LastActiveAt, &item.CreatedAt); err != nil {
+			response.Error(c, fmt.Errorf("scanning admin session: %w", err)); return
+		}
+		sessions = append(sessions, item)
+	}
+	if err := rows.Err(); err != nil { response.Error(c, fmt.Errorf("reading admin sessions: %w", err)); return }
+	response.OK(c, gin.H{"sessions": sessions})
+}
+
+func (h *Handler) AdminRevokeSession(c *gin.Context) {
+	roles, _ := c.Get(string(contextkeys.UserRoles))
+	isAdmin := false
+	if roleList, ok := roles.([]string); ok {
+		for _, role := range roleList { if role == "admin" { isAdmin = true; break } }
+	}
+	if !isAdmin { response.Error(c, apperrors.ErrForbidden()); return }
+	sessionID := strings.TrimSpace(c.Param("id"))
+	if _, err := uuid.Parse(sessionID); err != nil { response.Error(c, apperrors.ErrTokenInvalid()); return }
+	if h.svc.cache != nil {
+		if err := h.svc.cache.Delete(c.Request.Context(), "session:"+sessionID); err != nil {
+			response.Error(c, apperrors.ErrServiceUnavailable("admin session cache invalidation failed")); return
+		}
+	}
+	if err := h.svc.repo.RevokeSessionAndRefreshToken(c.Request.Context(), sessionID); err != nil {
+		response.Error(c, err); return
+	}
 	response.NoContent(c)
 }
 
@@ -743,40 +798,69 @@ func (h *Handler) Login(c *gin.Context) {
 		response.Error(c, apperrors.NewValidation([]apperrors.FieldError{{Field: "body", Message: err.Error()}}))
 		return
 	}
-
 	resp, err := h.svc.Login(c.Request.Context(), req, clientIP(c), c.GetHeader("User-Agent"))
-	if err != nil {
-		response.Error(c, err)
-		return
+	if err != nil { response.Error(c, err); return }
+	h.writeAuthResponse(c, resp)
+}
+
+func (h *Handler) writeAuthResponse(c *gin.Context, resp *AuthResponse) {
+	if h.svc.isProd {
+		csrf := uuid.NewString()
+		c.SetSameSite(http.SameSiteNoneMode)
+		c.SetCookie("sentinel_refresh", resp.RefreshToken, int(h.svc.tokens.RefreshTTL().Seconds()), "/api/v1/auth", "", true, true)
+		c.SetCookie("sentinel_csrf", csrf, int(h.svc.tokens.RefreshTTL().Seconds()), "/api/v1/auth", "", true, false)
+		resp.RefreshToken = ""
+		resp.CSRFToken = csrf
 	}
 	response.OK(c, resp)
+}
+
+func (h *Handler) validateRefreshCSRF(c *gin.Context) bool {
+	if !h.svc.isProd { return true }
+	cookie, cookieErr := c.Cookie("sentinel_csrf")
+	header := c.GetHeader("X-CSRF-Token")
+	if cookieErr != nil || cookie == "" || header == "" || subtle.ConstantTimeCompare([]byte(cookie), []byte(header)) != 1 {
+		response.Error(c, apperrors.ErrForbidden())
+		return false
+	}
+	return true
 }
 
 func (h *Handler) Refresh(c *gin.Context) {
+	if !h.validateRefreshCSRF(c) { return }
 	var req RefreshRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, apperrors.NewValidation([]apperrors.FieldError{{Field: "body", Message: err.Error()}}))
-		return
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.Error(c, apperrors.NewValidation([]apperrors.FieldError{{Field: "body", Message: err.Error()}})); return
+		}
 	}
-
+	if req.RefreshToken == "" {
+		if cookie, err := c.Cookie("sentinel_refresh"); err == nil { req.RefreshToken = cookie }
+	}
+	if req.RefreshToken == "" { response.Error(c, apperrors.ErrTokenInvalid()); return }
 	resp, err := h.svc.Refresh(c.Request.Context(), req.RefreshToken, clientIP(c), c.GetHeader("User-Agent"))
-	if err != nil {
-		response.Error(c, err)
-		return
-	}
-	response.OK(c, resp)
+	if err != nil { response.Error(c, err); return }
+	h.writeAuthResponse(c, resp)
 }
 
 func (h *Handler) Logout(c *gin.Context) {
+	if !h.validateRefreshCSRF(c) { return }
 	var req LogoutRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, apperrors.NewValidation([]apperrors.FieldError{{Field: "body", Message: err.Error()}}))
-		return
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.Error(c, apperrors.NewValidation([]apperrors.FieldError{{Field: "body", Message: err.Error()}})); return
+		}
 	}
-
-	if err := h.svc.Logout(c.Request.Context(), req.RefreshToken); err != nil {
-		response.Error(c, err)
-		return
+	if req.RefreshToken == "" {
+		if cookie, err := c.Cookie("sentinel_refresh"); err == nil { req.RefreshToken = cookie }
+	}
+	if req.RefreshToken != "" {
+		if err := h.svc.Logout(c.Request.Context(), req.RefreshToken); err != nil { response.Error(c, err); return }
+	}
+	if h.svc.isProd {
+		c.SetSameSite(http.SameSiteNoneMode)
+		c.SetCookie("sentinel_refresh", "", -1, "/api/v1/auth", "", true, true)
+		c.SetCookie("sentinel_csrf", "", -1, "/api/v1/auth", "", true, false)
 	}
 	response.NoContent(c)
 }

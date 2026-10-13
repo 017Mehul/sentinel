@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/MehulChamoli/auth-service/config"
+	"github.com/017Mehul/sentinel/config"
 )
 
 // NewPool creates and validates a pgx connection pool with the given configuration.

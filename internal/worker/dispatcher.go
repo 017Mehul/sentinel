@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/MehulChamoli/auth-service/config"
+	"github.com/017Mehul/sentinel/config"
 	gomail "gopkg.in/gomail.v2"
 	"github.com/rs/zerolog/log"
 )

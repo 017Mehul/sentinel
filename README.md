@@ -1,10 +1,10 @@
-# sentinel
+# Sentinel
 
 [![CI](https://github.com/017Mehul/sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/017Mehul/sentinel/actions/workflows/ci.yml)
 [![Go Version](https://img.shields.io/badge/go-1.26-blue)](https://golang.org/dl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A full authentication microservice built in Go. I started this to get a proper understanding of auth flows — JWTs, refresh token rotation, MFA, OAuth — by actually building them rather than dropping in a library.
+Sentinel is a production-oriented Identity & Access Management (IAM) platform built in Go. It combines authentication, session security, MFA, OAuth, RBAC, audit logging, and operational tooling behind a documented API and a connected web console.
 
 It covers most of what you'd need in a real app: register/login, email verification, password reset, TOTP-based MFA, Google and GitHub OAuth, RBAC, sessions, and some infrastructure stuff like rate limiting and webhook delivery.
 
@@ -65,11 +65,13 @@ cd sentinel
 
 go mod tidy
 cp .env.example .env
+# Edit .env: set DB_PASSWORD, OAUTH_STATE_SECRET, and a 32-character AES_ENCRYPTION_KEY.
+# These example values are for local development only.
 
 # generate RSA key pair
 make gen-keys
 
-# spin up postgres, redis, jaeger
+# start PostgreSQL, Redis, Jaeger, Mailpit, API, and outbox worker
 docker compose up --build
 ```
 
@@ -82,6 +84,7 @@ Once running:
 | Metrics | http://localhost:8080/metrics |
 | JWKS | http://localhost:8080/.well-known/jwks.json |
 | Jaeger | http://localhost:16686 |
+| Mailpit inbox | http://localhost:8025 |
 
 Run migrations if you're not using Docker Compose for the DB:
 
@@ -145,6 +148,7 @@ make security            # gosec + govulncheck
 ### MFA (requires auth)
 | Method | Path | |
 |---|---|---|
+| GET | `/api/v1/mfa/status` | current account MFA state |
 | POST | `/api/v1/mfa/setup` | generate TOTP secret + QR |
 | POST | `/api/v1/mfa/enable` | enable after verifying OTP |
 | POST | `/api/v1/mfa/disable` | disable MFA |
@@ -160,6 +164,9 @@ make security            # gosec + govulncheck
 ### Admin (requires `admin` role)
 | Method | Path | |
 |---|---|---|
+| GET | `/api/v1/admin/users` | paginated identity directory |
+| GET | `/api/v1/admin/sessions` | active sessions across users |
+| DELETE | `/api/v1/admin/sessions/{id}` | revoke a session |
 | GET | `/api/v1/admin/roles` | list roles |
 | GET | `/api/v1/admin/permissions` | list permissions |
 | GET | `/api/v1/admin/audit-logs` | audit log |
@@ -167,6 +174,8 @@ make security            # gosec + govulncheck
 | DELETE | `/api/v1/admin/users/roles` | revoke role |
 
 ---
+
+The Go module path, imports, protobuf generation options, container names, and binaries are standardized on Sentinel (`github.com/017Mehul/sentinel`).
 
 ## Project layout
 
@@ -234,6 +243,10 @@ make clean             remove build artifacts
 
 ---
 
+## Deployment reference
+
+`docker-compose.production.yml` documents the API and outbox worker behind a trusted TLS-terminating proxy, using externally managed PostgreSQL and TLS-enabled Redis. It does not provision a cloud database, Redis instance, domain, OAuth credentials, or SMTP provider. See `docs/demo.md` for required secrets and deployment constraints.
+
 ## License
 
 [MIT](LICENSE)
@@ -255,10 +268,10 @@ Keep private keys out of source control and restrict their filesystem permission
 
 Sentinel includes a responsive, light enterprise security console in `web/`, designed to be deployed independently from the Go API.
 
-The console now supports signing in against the Go API and loading the current profile, active sessions, roles, permissions, and audit events from the backend. Admin-only endpoints remain protected by the API. Access and refresh tokens are held in memory only and are not persisted in browser storage.
+The console connects to the Go API and provides live profile, session, admin user directory, roles, permissions, audit, MFA, profile-editing, and readiness views. Admin routes enforce authorization in the backend. Access tokens remain in memory. In production, refresh tokens are delivered in Secure HttpOnly cookies and refresh/logout require a matching CSRF token.
 
-**Important:** the original overview charts and sample overview rows are illustrative presentation data, not live telemetry. The connected data tables show actual API responses. The current API does not yet provide an administrative user directory, session revocation by arbitrary session ID, MFA status listing, or OAuth provider configuration endpoints, so those are not presented as completed live controls.
+The overview does not fabricate user counts or security events. Metrics without backend aggregation endpoints are shown as unavailable or explicitly illustrative. Google/GitHub OAuth routes currently return JSON from their callbacks; they do not yet bridge the callback into the console's in-memory login session.
 
 ### Preview / deploy the UI
 
-Serve `web/` as a static site or deploy it to a static host. Configure the Go API's CORS allowlist for the exact frontend origin, use HTTPS, then select **Connect API** and sign in. See [web/README.md](web/README.md) for the endpoints and current limitations.
+Serve `web/` as a static site or deploy it to a static host. Configure the Go API's CORS allowlist for the exact frontend origin, use HTTPS, then select **Connect API** and sign in. See [web/README.md](web/README.md) and the [interactive API reference](web/api-docs.html). The OpenAPI contract is available at [docs/api/openapi.yaml](docs/api/openapi.yaml) and in the static site as [web/openapi.yaml](web/openapi.yaml). Also see [the OpenAPI contract](docs/api/openapi.yaml), [architecture diagrams](docs/architecture.md), [the threat model](docs/threat-model.md), [the demo runbook](docs/demo.md), and [SECURITY.md](SECURITY.md).

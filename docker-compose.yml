@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: auth-postgres
+    container_name: sentinel-postgres
     environment:
       POSTGRES_DB: authdb
       POSTGRES_USER: postgres
@@ -18,9 +18,9 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: auth-redis
+    container_name: sentinel-redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -29,14 +29,22 @@ services:
 
   jaeger:
     image: jaegertracing/all-in-one:1.50
-    container_name: auth-jaeger
+    container_name: sentinel-jaeger
     ports:
       - "16686:16686"
       - "4317:4317"
 
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: sentinel-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
+
   migrate:
     image: migrate/migrate:v4.18.1
-    container_name: auth-migrate
+    container_name: sentinel-migrate
     depends_on:
       postgres:
         condition: service_healthy
@@ -49,12 +57,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: auth-service
+    container_name: sentinel-api
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mailpit:
+        condition: service_started
       migrate:
         condition: service_completed_successfully
     ports:
@@ -74,14 +84,24 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
       DB_SSL_MODE: disable
       REDIS_ADDR: redis:6379
-      REDIS_PASSWORD: ""
+      REDIS_TLS_ENABLED: "false"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       REDIS_DB: 0
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_TLS_ENABLED: "false"
+      SMTP_FROM_NAME: Sentinel
+      SMTP_FROM_EMAIL: noreply@sentinel.local
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
       JWT_PRIVATE_KEY_PATH: /app/certs/private.pem
+      JWT_CURRENT_KEY_ID: sentinel-key-v1
       JWT_PUBLIC_KEY_PATH: /app/certs/public.pem
       JWT_ACCESS_TOKEN_TTL: 15m
       JWT_REFRESH_TOKEN_TTL: 720h
       JWT_ISSUER: sentinel
       JWT_AUDIENCE: api
+      OAUTH_STATE_SECRET: ${OAUTH_STATE_SECRET:?Set OAUTH_STATE_SECRET in .env}
       SECRET_PROVIDER: local
       AES_ENCRYPTION_KEY: ${AES_ENCRYPTION_KEY:?Set AES_ENCRYPTION_KEY in .env}
       BCRYPT_COST: 12
@@ -90,8 +110,6 @@ services:
       PASSWORD_RESET_TOKEN_TTL: 1h
       EMAIL_VERIFICATION_TOKEN_TTL: 24h
       MFA_BACKUP_CODE_COUNT: 10
-      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
-      CORS_ALLOW_CREDENTIALS: "true"
       OTEL_ENABLED: "true"
       OTEL_SERVICE_NAME: "sentinel"
       OTEL_EXPORTER_ENDPOINT: "jaeger:4317"
@@ -103,6 +121,47 @@ services:
       FEATURE_FLAGS_RELOAD_INTERVAL: 30s
     volumes:
       - ./certs:/app/certs:ro
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sentinel-worker
+    entrypoint: ["/usr/local/bin/sentinel-worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      APP_ENV: development
+      APP_NAME: sentinel
+      CONFIG_PATH: /app/configs/app.yaml
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: authdb
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      DB_SSL_MODE: disable
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_TLS_ENABLED: "false"
+      OAUTH_STATE_SECRET: ${OAUTH_STATE_SECRET:?Set OAUTH_STATE_SECRET in .env}
+      AES_ENCRYPTION_KEY: ${AES_ENCRYPTION_KEY:?Set AES_ENCRYPTION_KEY in .env}
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_USERNAME: ""
+      SMTP_PASSWORD: ""
+      SMTP_FROM_NAME: Sentinel
+      SMTP_FROM_EMAIL: noreply@sentinel.local
+      SMTP_TLS_ENABLED: "false"
+    restart: unless-stopped
+    healthcheck:
+      disable: true
 
 volumes:
   pgdata:

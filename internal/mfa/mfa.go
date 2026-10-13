@@ -13,13 +13,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pquerna/otp/totp"
 	"github.com/skip2/go-qrcode"
-	"github.com/MehulChamoli/auth-service/config"
-	"github.com/MehulChamoli/auth-service/internal/shared/contextkeys"
-	"github.com/MehulChamoli/auth-service/internal/shared/dbtx"
-	apperrors "github.com/MehulChamoli/auth-service/internal/shared/errors"
-	"github.com/MehulChamoli/auth-service/internal/shared/response"
-	"github.com/MehulChamoli/auth-service/internal/user"
-	"github.com/MehulChamoli/auth-service/pkg/crypto"
+	"github.com/017Mehul/sentinel/config"
+	"github.com/017Mehul/sentinel/internal/shared/contextkeys"
+	"github.com/017Mehul/sentinel/internal/shared/dbtx"
+	apperrors "github.com/017Mehul/sentinel/internal/shared/errors"
+	"github.com/017Mehul/sentinel/internal/shared/response"
+	"github.com/017Mehul/sentinel/internal/user"
+	"github.com/017Mehul/sentinel/pkg/crypto"
 )
 
 // dbTX aliases the shared transaction interface so existing code needs no changes.
@@ -78,7 +78,7 @@ type DisableRequest struct {
 func NewRepository(db *pgxpool.Pool) *Repository { return &Repository{db: db} }
 
 func NewService(repo *Repository, users *user.Repository, security *config.SecurityConfig) *Service {
-	return &Service{repo: repo, users: users, security: *security, appName: "auth-service"}
+	return &Service{repo: repo, users: users, security: *security, appName: "Sentinel"}
 }
 
 func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
@@ -259,6 +259,17 @@ func (s *Service) Enabled(ctx context.Context, userID string) (bool, error) {
 	return secret.IsEnabled, nil
 }
 
+func (s *Service) Status(ctx context.Context, userID string) (enabled, configured bool, err error) {
+	secret, err := s.repo.GetSecret(ctx, nil, userID)
+	if err != nil {
+		if ae := apperrors.AsAppError(err); ae != nil && ae.Code == apperrors.CodeMFANotEnabled {
+			return false, false, nil
+		}
+		return false, false, err
+	}
+	return secret.IsEnabled, true, nil
+}
+
 func (s *Service) Enable(ctx context.Context, userID, code string) error {
 	tx, err := s.repo.beginTx(ctx)
 	if err != nil {
@@ -340,6 +351,20 @@ func (s *Service) verifyWithBackupOrTOTP(ctx context.Context, tx dbTX, userID, c
 		}
 	}
 	return apperrors.ErrMFAInvalidOTP()
+}
+
+func (h *Handler) Status(c *gin.Context) {
+	userID, ok := c.Get(string(contextkeys.UserID))
+	if !ok {
+		response.Error(c, apperrors.ErrForbidden())
+		return
+	}
+	enabled, configured, err := h.svc.Status(c.Request.Context(), fmt.Sprint(userID))
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.OK(c, gin.H{"enabled": enabled, "configured": configured})
 }
 
 func (h *Handler) Setup(c *gin.Context) {

@@ -4,7 +4,7 @@ Pull requests are welcome. Here's how to get set up.
 
 ## Prerequisites
 
-- Go 1.24+
+- Go 1.26.9+
 - Docker (needed for integration tests)
 - `golangci-lint` — `go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest`
 - `gosec` — `go install github.com/securego/gosec/v2/cmd/gosec@latest`
@@ -14,8 +14,8 @@ Pull requests are welcome. Here's how to get set up.
 ## Setup
 
 ```bash
-git clone https://github.com/MehulChamoli/auth-service.git
-cd auth-service
+git clone https://github.com/017Mehul/sentinel.git
+cd sentinel
 go mod tidy
 make gen-keys
 cp .env.example .env
@@ -39,12 +39,18 @@ make security
 - Never store raw tokens — always SHA-256 hash them first.
 - Repository methods should accept a `dbTX` interface so callers can compose multiple operations in a single transaction.
 
+## Documentation and browser checks
+
+- Keep the OpenAPI contract in `docs/api/openapi.yaml` aligned with handlers.
+- The static API reference is available at `web/api-docs.html` and `web/openapi.yaml`.
+- The manual Connected Console Screenshot workflow requires protected demo credentials and captures only after successful API login.
+
 ## Sending a PR
 
 1. Fork and branch: `git checkout -b feat/your-thing`
 2. Write tests for new behaviour.
 3. Make sure `make test lint` passes.
-4. Open a PR against `main`. Describe what changed and why — the diff alone usually isn't enough context.
+4. Open a PR against `master` (the default branch). Describe what changed and why — the diff alone usually isn't enough context.
 
 ## Adding migrations
 
@@ -56,4 +62,4 @@ This creates both `.up.sql` and `.down.sql` files. Always fill in the down migra
 
 ## Security issues
 
-Don't open a public issue for security vulnerabilities. Email directly so it can be looked at before anything goes public.
+Do not open a public issue for security vulnerabilities. Use the repository's private vulnerability reporting feature if enabled; otherwise contact the maintainer privately through an existing trusted channel. Do not disclose publicly; see SECURITY.md.

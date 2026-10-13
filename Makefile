@@ -1,9 +1,14 @@
 .PHONY: all build run test lint wire sqlc proto migrate-up migrate-down \
-        docker-up docker-down docker-build clean gen-keys help
+        docker-up docker-down docker-reset docker-logs docker-build clean gen-keys help
 
 # ── Variables ──────────────────────────────────────────────────────────────────
-BINARY_AUTH        := bin/auth-service
-BINARY_WORKER      := bin/worker
+ifneq ($(wildcard .env),)
+include .env
+export
+endif
+
+BINARY_AUTH        := bin/sentinel
+BINARY_WORKER      := bin/sentinel-worker
 
 CMD_AUTH           := ./cmd/server
 CMD_WORKER         := ./cmd/worker
@@ -14,7 +19,8 @@ LDFLAGS            := -s -w
 
 DOCKER_COMPOSE     := docker compose -f docker-compose.yml
 MIGRATE_DIR        := ./migrations
-DB_URL             ?= postgres://postgres:changeme@localhost:5432/authdb?sslmode=disable
+DB_PASSWORD        ?= changeme
+DB_URL             ?= postgres://postgres:$(DB_PASSWORD)@localhost:5432/authdb?sslmode=disable
 
 # ── Build ──────────────────────────────────────────────────────────────────────
 
@@ -23,7 +29,7 @@ all: build
 build: build-auth build-worker
 
 build-auth:
-	@echo "▶ Building auth service..."
+	@echo "▶ Building Sentinel API..."
 	$(GO) build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BINARY_AUTH) $(CMD_AUTH)
 
 build-worker:
@@ -33,11 +39,11 @@ build-worker:
 # ── Run ────────────────────────────────────────────────────────────────────────
 
 run: build-auth
-	@echo "▶ Starting auth service..."
+	@echo "▶ Starting Sentinel API..."
 	./$(BINARY_AUTH)
 
 run-dev:
-	@echo "▶ Starting auth service (live reload)..."
+	@echo "▶ Starting Sentinel API (live reload)..."
 	air -c .air.toml
 
 run-worker: build-worker
@@ -58,7 +64,7 @@ proto:
 	@command -v protoc >/dev/null || (echo "protoc is required to regenerate bindings" && exit 1)
 	@command -v protoc-gen-go >/dev/null || (echo "install protoc-gen-go first" && exit 1)
 	@command -v protoc-gen-go-grpc >/dev/null || (echo "install protoc-gen-go-grpc first" && exit 1)
-	protoc --go_out=. --go_opt=module=github.com/MehulChamoli/auth-service --go-grpc_out=. --go-grpc_opt=module=github.com/MehulChamoli/auth-service proto/auth/v1/auth.proto
+	protoc --go_out=. --go_opt=module=github.com/017Mehul/sentinel --go-grpc_out=. --go-grpc_opt=module=github.com/017Mehul/sentinel proto/auth/v1/auth.proto
 
 gen-keys:
 	@echo "▶ Generating RS256 key pair..."
@@ -68,7 +74,7 @@ gen-keys:
 	@echo "✔ Keys generated in ./certs/"
 
 swagger:
-	@echo "▶ Swagger generation is not configured yet"
+	@echo "▶ OpenAPI contract: docs/api/openapi.yaml"
 
 # ── Database ───────────────────────────────────────────────────────────────────
 
@@ -144,17 +150,21 @@ docker-build:
 docker-up:
 	@echo "▶ Starting full stack..."
 	$(DOCKER_COMPOSE) up --build -d
-	@echo "✔ Auth service:    http://localhost:8080"
-	@echo "✔ Swagger UI:      http://localhost:8081"
+	@echo "✔ Sentinel API:    http://localhost:8080"
+	@echo "✔ Redis:           localhost:6379"
+	@echo "✔ gRPC:            localhost:9090"
 	@echo "✔ Jaeger UI:       http://localhost:16686"
-	@echo "✔ Grafana:         http://localhost:3000"
-	@echo "✔ MailHog:         http://localhost:8025"
+	@echo "✔ Mailpit UI:      http://localhost:8025"
 
 docker-down:
+	$(DOCKER_COMPOSE) down
+
+docker-reset:
+	@echo "⚠ This removes local PostgreSQL data."
 	$(DOCKER_COMPOSE) down -v
 
 docker-logs:
-	$(DOCKER_COMPOSE) logs -f auth postgres redis migrate
+	$(DOCKER_COMPOSE) logs -f api worker postgres redis mailpit migrate jaeger
 
 # ── Cleanup ────────────────────────────────────────────────────────────────────
 
@@ -174,7 +184,7 @@ help:
 	@echo "Sentinel — Available Make Targets"
 	@echo "═══════════════════════════════════════"
 	@echo "  make build          Build all binaries"
-	@echo "  make run            Build + run auth service"
+	@echo "  make run            Build + run Sentinel API"
 	@echo "  make wire           Regenerate Wire DI code"
 	@echo "  make sqlc           Regenerate sqlc query code"
 	@echo "  make proto          Regenerate protobuf code"
@@ -189,6 +199,6 @@ help:
 	@echo "  make lint           Run golangci-lint"
 	@echo "  make security       Run gosec + govulncheck"
 	@echo "  make docker-up      Start full Docker stack"
-	@echo "  make docker-down    Stop Docker stack"
+	@echo "  make docker-down    Stop Docker stack (preserve data)"
 	@echo "  make clean          Remove build artifacts"
 	@echo ""

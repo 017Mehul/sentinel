@@ -7,9 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/MehulChamoli/auth-service/config"
-	"github.com/MehulChamoli/auth-service/internal/worker"
-	"github.com/MehulChamoli/auth-service/pkg/database"
+	"github.com/017Mehul/sentinel/config"
+	"github.com/017Mehul/sentinel/internal/worker"
+	"github.com/017Mehul/sentinel/pkg/database"
 )
 
 func main() {
@@ -17,16 +17,13 @@ func main() {
 	if cfgPath == "" { cfgPath = "configs/app.yaml" }
 	cfg, err := config.Load(cfgPath)
 	if err != nil { fmt.Fprintf(os.Stderr, "FATAL: loading config: %v\\n", err); os.Exit(1) }
-
 	ctx := context.Background()
 	pool, err := database.NewPool(ctx, &cfg.Database)
 	if err != nil { fmt.Fprintf(os.Stderr, "FATAL: connecting to database: %v\\n", err); os.Exit(1) }
 	defer pool.Close()
-
 	dispatcher := worker.NewSMTPDispatcher(cfg.SMTP)
 	m := worker.NewManager(pool, dispatcher)
 	go m.Start()
-
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit

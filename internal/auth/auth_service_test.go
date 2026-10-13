@@ -8,11 +8,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/MehulChamoli/auth-service/config"
-	"github.com/MehulChamoli/auth-service/internal/user"
-	apperrors "github.com/MehulChamoli/auth-service/internal/shared/errors"
-	"github.com/MehulChamoli/auth-service/pkg/crypto"
-	"github.com/MehulChamoli/auth-service/pkg/token"
+	"github.com/017Mehul/sentinel/config"
+	"github.com/017Mehul/sentinel/internal/user"
+	apperrors "github.com/017Mehul/sentinel/internal/shared/errors"
+	"github.com/017Mehul/sentinel/pkg/crypto"
+	"github.com/017Mehul/sentinel/pkg/token"
 )
 
 // ── helpers ───────────────────────────────────────────────────────────────────

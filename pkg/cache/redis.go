@@ -2,13 +2,14 @@ package cache
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/MehulChamoli/auth-service/config"
+	"github.com/017Mehul/sentinel/config"
 )
 
 // Client wraps the Redis client with typed helpers.
@@ -19,7 +20,7 @@ type Client struct {
 
 // NewRedisClient creates and validates a Redis connection.
 func NewRedisClient(cfg *config.RedisConfig) (*Client, error) {
-	rdb := redis.NewClient(&redis.Options{
+	options := &redis.Options{
 		Addr:         cfg.Addr,
 		Password:     cfg.Password,
 		DB:           cfg.DB,
@@ -28,7 +29,11 @@ func NewRedisClient(cfg *config.RedisConfig) (*Client, error) {
 		DialTimeout:  cfg.DialTimeout,
 		ReadTimeout:  cfg.ReadTimeout,
 		WriteTimeout: cfg.WriteTimeout,
-	})
+	}
+	if cfg.TLSEnabled {
+		options.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	}
+	rdb := redis.NewClient(options)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

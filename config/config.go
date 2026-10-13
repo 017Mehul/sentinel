@@ -1,10 +1,10 @@
 package config
 
 import (
-	"os"
-	"net/url"
-	"regexp"
 	"fmt"
+	"net/url"
+	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -18,7 +18,6 @@ type Config struct {
 	Redis    RedisConfig    `mapstructure:"redis"`
 	JWT      JWTConfig      `mapstructure:"jwt"`
 	Secrets  SecretsConfig  `mapstructure:"secrets"`
-	NATS     NATSConfig     `mapstructure:"nats"`
 	SMTP     SMTPConfig     `mapstructure:"smtp"`
 	OAuth    OAuthConfig    `mapstructure:"oauth"`
 	Security SecurityConfig `mapstructure:"security"`
@@ -63,6 +62,7 @@ func (d DatabaseConfig) DSN() string {
 
 type RedisConfig struct {
 	Addr         string        `mapstructure:"addr"`
+	TLSEnabled   bool          `mapstructure:"tls_enabled"`
 	Password     string        `mapstructure:"password"`
 	DB           int           `mapstructure:"db"`
 	PoolSize     int           `mapstructure:"pool_size"`
@@ -101,12 +101,7 @@ type AWSConfig struct {
 	SecretPrefix string `mapstructure:"secret_prefix"`
 }
 
-type NATSConfig struct {
-	URL            string `mapstructure:"url"`
-	StreamName     string `mapstructure:"stream_name"`
-	StreamSubjects string `mapstructure:"stream_subjects"`
-	ConsumerName   string `mapstructure:"consumer_name"`
-}
+
 
 type SMTPConfig struct {
 	Host       string `mapstructure:"host"`
@@ -179,6 +174,7 @@ type WebhookConfig struct {
 
 type TLSConfig struct {
 	Enabled  bool   `mapstructure:"enabled"`
+	TerminatedByProxy bool `mapstructure:"terminated_by_proxy"`
 	CertFile string `mapstructure:"cert_file"`
 	KeyFile  string `mapstructure:"key_file"`
 }
@@ -283,13 +279,52 @@ func validate(cfg *Config) error {
 	}
 
 	if cfg.IsProduction() {
-		if cfg.Database.Password == "" || cfg.Database.Password == "changeme" {
+		if len(cfg.Database.Password) < 24 || isPlaceholderSecret(cfg.Database.Password) {
 			errs = append(errs, "database.password must be set to a non-default value in production")
 		}
-		if cfg.OAuth.StateSecret == "" || cfg.OAuth.StateSecret == "changeme" {
+		if len(cfg.Redis.Password) < 16 || isPlaceholderSecret(cfg.Redis.Password) {
+			errs = append(errs, "redis.password must be configured in production")
+		}
+		if !cfg.Redis.TLSEnabled {
+			errs = append(errs, "redis.tls_enabled must be true in production")
+		}
+		if !containsString([]string{"require", "verify-ca", "verify-full"}, strings.ToLower(cfg.Database.SSLMode)) {
+			errs = append(errs, "database.ssl_mode must require TLS in production")
+		}
+		if cfg.SMTP.Host == "" || cfg.SMTP.Host == "localhost" {
+			errs = append(errs, "smtp.host must point to a real mail service in production")
+		}
+		if cfg.SMTP.FromEmail == "" || strings.Contains(cfg.SMTP.FromEmail, "example.com") {
+			errs = append(errs, "smtp.from_email must be a verified sender address in production")
+		}
+		if !cfg.SMTP.TLSEnabled {
+			errs = append(errs, "smtp.tls_enabled must be true in production")
+		}
+		if cfg.SMTP.Username == "" || isPlaceholderSecret(cfg.SMTP.Username) || len(cfg.SMTP.Password) < 16 || isPlaceholderSecret(cfg.SMTP.Password) {
+			errs = append(errs, "smtp.username and smtp.password must be configured in production")
+		}
+		if cfg.OAuth.Google.ClientID != "" && isPlaceholderSecret(cfg.OAuth.Google.ClientSecret) {
+			errs = append(errs, "google OAuth client secret must not be a placeholder in production")
+		}
+		if cfg.OAuth.GitHub.ClientID != "" && isPlaceholderSecret(cfg.OAuth.GitHub.ClientSecret) {
+			errs = append(errs, "github OAuth client secret must not be a placeholder in production")
+		}
+		if (cfg.OAuth.Google.ClientID == "") != (cfg.OAuth.Google.ClientSecret == "") {
+			errs = append(errs, "google OAuth client ID and secret must be configured together")
+		}
+		if (cfg.OAuth.GitHub.ClientID == "") != (cfg.OAuth.GitHub.ClientSecret == "") {
+			errs = append(errs, "github OAuth client ID and secret must be configured together")
+		}
+		if cfg.OAuth.Google.ClientID != "" && !isHTTPSOriginOrURL(cfg.OAuth.Google.RedirectURL) {
+			errs = append(errs, "google OAuth redirect_url must use HTTPS in production")
+		}
+		if cfg.OAuth.GitHub.ClientID != "" && !isHTTPSOriginOrURL(cfg.OAuth.GitHub.RedirectURL) {
+			errs = append(errs, "github OAuth redirect_url must use HTTPS in production")
+		}
+		if len(cfg.OAuth.StateSecret) < 32 || isPlaceholderSecret(cfg.OAuth.StateSecret) {
 			errs = append(errs, "oauth.state_secret must be set to a non-default value in production")
 		}
-		if cfg.Security.AESEncryptionKey == "" || strings.Contains(cfg.Security.AESEncryptionKey, "changeme") {
+		if cfg.Security.AESEncryptionKey == "" || isPlaceholderSecret(cfg.Security.AESEncryptionKey) {
 			errs = append(errs, "security.aes_encryption_key must be a non-default value in production")
 		}
 		if cfg.JWT.PrivateKeyPath == "" || cfg.JWT.PublicKeyPath == "" {
@@ -305,15 +340,18 @@ func validate(cfg *Config) error {
 		if cfg.JWT.PreviousPublicKeyPath != "" && cfg.JWT.PreviousKeyID == "" {
 			errs = append(errs, "jwt.previous_key_id must be set when previous public key is configured")
 		}
-		if !cfg.TLS.Enabled {
-			errs = append(errs, "tls.enabled must be true in production")
+		if !cfg.TLS.Enabled && !cfg.TLS.TerminatedByProxy {
+			errs = append(errs, "production requires direct TLS or TLS_TERMINATED_BY_PROXY=true behind a trusted HTTPS reverse proxy")
+		}
+		if cfg.TLS.Enabled && (cfg.TLS.CertFile == "" || cfg.TLS.KeyFile == "") {
+			errs = append(errs, "tls.cert_file and tls.key_file are required when direct TLS is enabled")
 		}
 		if len(cfg.CORS.AllowedOrigins) == 0 {
 			errs = append(errs, "cors.allowed_origins must contain at least one origin in production")
 		}
 		for _, origin := range cfg.CORS.AllowedOrigins {
 			parsed, err := url.Parse(origin)
-			if origin == "*" || err != nil || parsed == nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil {
+			if origin == "*" || err != nil || parsed == nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || (parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.Fragment != "" {
 				errs = append(errs, "cors.allowed_origins must contain explicit HTTPS origins (wildcards are forbidden) in production")
 				break
 			}
@@ -325,6 +363,26 @@ func validate(cfg *Config) error {
 	}
 	return nil
 }
+
+func isPlaceholderSecret(value string) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return true
+	}
+	for _, marker := range []string{"changeme", "change-me", "replace-me", "placeholder", "your-secret", "example-secret", "dummy-secret"} {
+		if strings.Contains(value, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func isHTTPSOriginOrURL(value string) bool {
+	parsed, err := url.Parse(value)
+	return err == nil && parsed.Scheme == "https" && parsed.Host != "" && parsed.User == nil
+}
+
+func containsString(values []string, candidate string) bool { for _, value := range values { if value == candidate { return true } }; return false }
 
 // IsDevelopment returns true when running in local development mode.
 func (c *Config) IsDevelopment() bool {

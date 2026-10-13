@@ -17,14 +17,14 @@ import (
 	"golang.org/x/oauth2/github"
 	"golang.org/x/oauth2/google"
 
-	"github.com/MehulChamoli/auth-service/config"
-	"github.com/MehulChamoli/auth-service/internal/user"
-	"github.com/MehulChamoli/auth-service/internal/shared/dbtx"
-	apperrors "github.com/MehulChamoli/auth-service/internal/shared/errors"
-	"github.com/MehulChamoli/auth-service/internal/shared/response"
-	"github.com/MehulChamoli/auth-service/pkg/cache"
-	"github.com/MehulChamoli/auth-service/pkg/crypto"
-	"github.com/MehulChamoli/auth-service/pkg/token"
+	"github.com/017Mehul/sentinel/config"
+	"github.com/017Mehul/sentinel/internal/user"
+	"github.com/017Mehul/sentinel/internal/shared/dbtx"
+	apperrors "github.com/017Mehul/sentinel/internal/shared/errors"
+	"github.com/017Mehul/sentinel/internal/shared/response"
+	"github.com/017Mehul/sentinel/pkg/cache"
+	"github.com/017Mehul/sentinel/pkg/crypto"
+	"github.com/017Mehul/sentinel/pkg/token"
 )
 
 // dbTX aliases the shared transaction interface so existing code needs no changes.
@@ -141,6 +141,7 @@ type Service struct {
 	tokens     *token.Manager
 	configs    map[string]*oauth2.Config
 	security   config.SecurityConfig
+	isProd     bool
 }
 
 func NewService(repo *Repository, users *user.Repository, c *cache.Client, tokens *token.Manager, cfg *config.Config) *Service {
@@ -171,6 +172,7 @@ func NewService(repo *Repository, users *user.Repository, c *cache.Client, token
 		tokens:   tokens,
 		configs:  configs,
 		security: cfg.Security,
+		isProd: cfg.App.Env == "production",
 	}
 }
 
@@ -465,6 +467,7 @@ type AuthResponse struct {
 	TokenType    string    `json:"token_type"`
 	ExpiresIn    int       `json:"expires_in"`
 	SessionID    string    `json:"session_id"`
+	CSRFToken    string    `json:"csrf_token,omitempty"`
 }
 
 type Handler struct {
@@ -473,6 +476,18 @@ type Handler struct {
 
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
+}
+
+func (h *Handler) writeAuthResponse(c *gin.Context, resp *AuthResponse) {
+	if h.svc.isProd {
+		csrf := uuid.NewString()
+		c.SetSameSite(http.SameSiteNoneMode)
+		c.SetCookie("sentinel_refresh", resp.RefreshToken, int(h.svc.tokens.RefreshTTL().Seconds()), "/api/v1/auth", "", true, true)
+		c.SetCookie("sentinel_csrf", csrf, int(h.svc.tokens.RefreshTTL().Seconds()), "/api/v1/auth", "", true, false)
+		resp.RefreshToken = ""
+		resp.CSRFToken = csrf
+	}
+	response.OK(c, resp)
 }
 
 func (h *Handler) GoogleLogin(c *gin.Context) {
@@ -492,7 +507,7 @@ func (h *Handler) GoogleCallback(c *gin.Context) {
 		response.Error(c, err)
 		return
 	}
-	response.OK(c, resp)
+	h.writeAuthResponse(c, resp)
 }
 
 func (h *Handler) GitHubLogin(c *gin.Context) {
@@ -512,5 +527,5 @@ func (h *Handler) GitHubCallback(c *gin.Context) {
 		response.Error(c, err)
 		return
 	}
-	response.OK(c, resp)
+	h.writeAuthResponse(c, resp)
 }

@@ -1,34 +1,43 @@
-# Sentinel Web UI
+# Sentinel Web Console
 
-Portfolio-facing security console for Sentinel. It uses a light enterprise visual system with soft blue washes, white surfaces, navy typography, restrained blue accents, and responsive layouts.
+Static HTML/CSS/JavaScript console for the Sentinel Go IAM API. It is a single frontend, not a second backend.
 
-## Connect to the Go API
+## Local run
 
-1. Run the Sentinel Go API and its PostgreSQL/Redis dependencies.
-2. Configure the API's CORS allowed origins to include the exact origin serving this static UI.
-3. Open the console and choose **Connect API**.
-4. Enter the API base URL (for example, `https://api.example.com`), then sign in with a Sentinel account. An MFA code is accepted when required.
-5. The console requests the current profile, sessions, roles, permissions, and audit logs using the bearer access token returned by `POST /api/v1/auth/login`.
+From the repository root:
 
-The access and refresh tokens are held **in memory only**; the UI does not persist them in localStorage or sessionStorage. Refreshing the page clears the connection and requires signing in again. Use HTTPS for any deployed API or console.
+~~~bash
+python3 -m http.server 5173 -d web
+~~~
 
-## Current API-backed views
+Open http://localhost:5173. In a separate terminal, start the API stack with Docker Compose and configure a verified local account. Local email verification is visible in Mailpit at http://localhost:8025.
 
-- Profile identity from `GET /api/v1/users/me`
-- Sessions visible to the authenticated user from `GET /api/v1/sessions`
-- Roles from `GET /api/v1/admin/roles` (admin role required)
-- Permissions from `GET /api/v1/admin/permissions` (admin role required)
-- Audit events from `GET /api/v1/admin/audit-logs` (admin role required)
-- Sign-in through `POST /api/v1/auth/login`
+## API connection
 
-Some routes intentionally return authorization errors for non-admin users; the console reports these as unavailable rather than fabricating data.
+- Select **Connect API** and use http://localhost:8080 for local development.
+- For Vercel production, set the project environment variable SENTINEL_API_BASE to the backend HTTPS origin. The build fails if it is missing or invalid, generates dist/config.js with the origin fixed and URL override disabled, and copies only static assets into dist. The API origin is public configuration, not a secret. Do not hand-edit config.js for production.
+- The API must allow the exact console origin in CORS and allow credentials for production refresh cookies.
+- Access tokens stay in memory. Production refresh tokens use a Secure HttpOnly cookie and a separate CSRF cookie; refresh/logout send the in-memory CSRF token in X-CSRF-Token.
+- The UI does not write tokens to localStorage or sessionStorage.
 
-## Important limitations
+## Live views
 
-The existing Go API does not currently expose an administrative list-users endpoint, a session-revocation-by-ID endpoint, a GET endpoint for MFA enrollment status, or a provider-configuration endpoint. Those areas are not represented as working administrative controls in this integration. The original overview charts and sample user/security tables remain presentation examples and must not be interpreted as live telemetry. The live-data tables below the overview show the records actually returned by the API.
+- GET /api/v1/users/me and PATCH /api/v1/users/me — profile
+- GET /api/v1/sessions and DELETE /api/v1/sessions/current — current user's sessions and current-session revocation
+- GET /api/v1/admin/users — paginated admin directory
+- GET /api/v1/admin/sessions and DELETE /api/v1/admin/sessions/{id} — admin session control
+- GET /api/v1/admin/roles and GET /api/v1/admin/permissions — RBAC catalogue
+- GET /api/v1/admin/audit-logs — audit events
+- GET /api/v1/mfa/status and POST /api/v1/mfa/setup, /enable, /disable — MFA management
+- GET /healthz, GET /ready, and GET /version — service status
 
-No backend endpoint is added or bypassed by the frontend. Authorization is enforced by Sentinel itself.
+Administrative endpoints require admin privileges enforced by the backend. The console's controls are not a substitute for backend authorization.
 
-## Static deployment
+## Explicit limitations
 
-Serve this directory as a static site. If using a fixed API URL, define `window.SENTINEL_API_BASE` before `app.js` loads; otherwise, the Connect API dialog accepts it at runtime. The backend must allow the deployed frontend origin through its CORS configuration.
+- Authentication activity charts, geographic session distribution, and aggregate MFA adoption are not exposed by the current API; the console labels those views illustrative or unavailable.
+- OAuth provider login/callback routes exist, but callbacks currently return JSON and are not bridged into the console's in-memory session. Use password login to establish the console session.
+- The console cannot create new users because the backend does not currently expose an admin user-creation endpoint.
+- A connected screenshot is captured only by the manual Connected Console Screenshot workflow after successful login against a real API; no screenshot is fabricated or represented as live before that run.
+
+Open the interactive API reference at api-docs.html. The spec is in openapi.yaml and docs/api/openapi.yaml. See the repository root README, docs/architecture.md, docs/threat-model.md, docs/demo.md, and SECURITY.md.

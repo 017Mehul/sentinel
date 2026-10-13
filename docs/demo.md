@@ -1,0 +1,63 @@
+# Sentinel Demo Runbook
+
+## Local stack
+
+Prerequisites: Go 1.26.9, Docker Compose, OpenSSL, and Node.js 22 for frontend syntax checks.
+
+1. Clone the repository and enter its root.
+2. Copy .env.example to .env.
+3. Set a strong local DB_PASSWORD and a 32-character AES_ENCRYPTION_KEY. Example generators: openssl rand -hex 24 and openssl rand -hex 16. Do not reuse production secrets.
+4. Generate local RS256 keys with make gen-keys.
+5. Start the stack with make docker-up.
+6. Check liveness at http://localhost:8080/healthz, readiness at http://localhost:8080/ready, Jaeger at http://localhost:16686, and Mailpit at http://localhost:8025.
+7. Serve the console with python3 -m http.server 5173 -d web, then open http://localhost:5173.
+8. Select Connect API and sign in with a verified account. Registration and verification emails can be inspected in Mailpit.
+9. Test profile editing, MFA enrollment, role assignment, audit logs, session revocation, refresh rotation, and logout.
+
+Do not create a public demo account with admin privileges or publish credentials in the repository. For a public demo, use a disposable account with minimal seeded data, rotate its password regularly, and restrict permissions.
+
+## Publish and run the production image
+
+- Run the **Publish Sentinel Container** workflow manually, or push a version tag such as `v1.0.0`.
+- The workflow publishes `ghcr.io/017mehul/sentinel:latest` for manual runs and versioned tags plus a commit-SHA tag.
+- On your production host, authenticate to GHCR if the package is private, set `SENTINEL_IMAGE=ghcr.io/017mehul/sentinel:<tag>`, and use `docker compose -f docker-compose.production.yml pull` followed by `docker compose -f docker-compose.production.yml up -d --no-build`.
+- Keep the API and worker on private ingress. Only the trusted TLS proxy should be able to reach the API's exposed internal port.
+
+Publishing the image does not provision managed PostgreSQL/Redis or deploy the service to a hosting provider; those still require a configured production environment and credentials.
+
+## Production deployment preparation
+
+docker-compose.production.yml is a reference template for an API/worker pair behind a trusted HTTPS reverse proxy. It expects externally managed PostgreSQL and Redis. Before starting it:
+
+- provide PostgreSQL credentials with DB_SSL_MODE=require or stronger;
+- provide Redis credentials with REDIS_TLS_ENABLED=true;
+- mount protected JWT private/public key files;
+- supply a random 32-byte AES key and a strong OAuth state secret;
+- configure a verified SMTP sender and real provider credentials;
+- set CORS_ALLOWED_ORIGINS to the exact HTTPS console origin; set Vercel SENTINEL_API_BASE to the API HTTPS origin (the static build fails if missing or invalid);
+- set TLS_TERMINATED_BY_PROXY=true only behind a trusted HTTPS proxy;
+- restrict the API to private ingress, configure backups, and test restore procedures.
+
+Never paste secrets into GitHub issues, README files, screenshots, or chat logs. Use the hosting platform's protected environment/secrets manager.
+
+## Connected screenshot
+
+A real connected screenshot is not committed as sample art. Run the manual Connected Console Screenshot GitHub Actions workflow after a reachable API and a dedicated demo account exist. Store SENTINEL_CONSOLE_URL, SENTINEL_API_BASE, SENTINEL_DEMO_EMAIL, and SENTINEL_DEMO_PASSWORD as protected repository secrets. The workflow fails instead of capturing a screenshot if login and the live API connection indicator do not succeed.
+
+## Static console deployment (Vercel)
+
+The repository includes a manual GitHub Actions workflow named **Deploy Web Console to Vercel**. It deploys only the static frontend; it does not provision or deploy the Go API. For a manual Vercel setup instead, set the project root to `web`, use `node build-config.mjs`, and set `SENTINEL_API_BASE` as a build-time environment variable.
+
+Configure the following before running it:
+
+- Repository secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`.
+- Repository variable: `SENTINEL_API_BASE`, set to the deployed API's HTTPS origin (origin only; no path, credentials, query, or fragment).
+- Protected secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`.
+- Repository variable: `VERCEL_CLI_VERSION`, set to an exact reviewed Vercel CLI version.
+- Review the GitHub `production` environment approval rules before running the manual deployment workflow.
+- Vercel project root directory: `web`, with production deployment permissions enabled for the token.
+- The API's CORS allowlist must include the exact deployed console origin, and production refresh-cookie requests must allow credentials.
+
+The workflow intentionally fails when any required value is missing or the API origin is not HTTPS. Do not add credentials to `web/config.js`; it is public frontend configuration, not a secret store.
+
+The Go API and outbox worker still need deployment to a container host with managed PostgreSQL and TLS-enabled Redis. Configure those using the production Compose reference or the hosting provider's equivalent. The repository does not currently contain cloud credentials, and no public API deployment is claimed.

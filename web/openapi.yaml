@@ -1,0 +1,279 @@
+openapi: 3.1.0
+info:
+  title: Sentinel IAM API
+  version: 1.0.0
+  description: >
+    HTTP API for Sentinel identity, authentication, MFA, sessions, RBAC, and audit data.
+    Admin endpoints enforce the admin role in the backend.
+servers:
+  - url: http://localhost:8080
+    description: Local development only
+security:
+  - bearerAuth: []
+paths:
+  /healthz:
+    get:
+      security: []
+      summary: Liveness probe
+      responses:
+        "200": { description: Process is alive }
+  /ready:
+    get:
+      security: []
+      summary: Readiness probe (database and Redis)
+      responses:
+        "200": { description: Dependencies are ready }
+        "503": { description: A required dependency is unavailable }
+  /version:
+    get:
+      security: []
+      summary: Service version
+      responses:
+        "200": { description: Service metadata }
+  /.well-known/jwks.json:
+    get:
+      security: []
+      summary: Public JWT signing keys
+      responses:
+        "200": { description: JSON Web Key Set }
+  /api/v1/auth/login:
+    post:
+      security: []
+      summary: Authenticate with email, password, and optional MFA code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+                mfa_code: { type: string }
+      responses:
+        "200": { description: Authenticated; returns short-lived access token and user context }
+        "401": { description: Invalid credentials or failed MFA }
+        "429": { description: Rate limit exceeded }
+  /api/v1/auth/refresh:
+    post:
+      security: []
+      summary: Rotate a refresh token
+      description: >
+        Development sends refresh_token in JSON. Production uses the Secure HttpOnly
+        sentinel_refresh cookie and requires X-CSRF-Token to match the sentinel_csrf cookie.
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token: { type: string }
+      responses:
+        "200": { description: Rotated token response }
+        "401": { description: Invalid, expired, or reused refresh token }
+        "403": { description: Invalid CSRF token in production cookie mode }
+  /api/v1/auth/logout:
+    post:
+      security: []
+      summary: Revoke the refresh token/session
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token: { type: string }
+      responses:
+        "204": { description: Signed out }
+        "403": { description: Invalid CSRF token in production cookie mode }
+  /api/v1/users/me:
+    get:
+      summary: Get current profile and role names
+      responses:
+        "200": { description: Current profile }
+        "401": { description: Authentication required }
+    patch:
+      summary: Update current profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                full_name: { type: string, maxLength: 120 }
+                avatar_url: { type: string, format: uri, maxLength: 2048 }
+      responses:
+        "200": { description: Updated profile }
+  /api/v1/sessions:
+    get:
+      summary: List current user's active sessions
+      responses:
+        "200": { description: Current user's sessions }
+  /api/v1/sessions/current:
+    delete:
+      summary: Revoke the current session
+      responses:
+        "204": { description: Session revoked }
+  /api/v1/mfa/status:
+    get:
+      summary: Get MFA status for current account
+      responses:
+        "200": { description: MFA enabled/configured state }
+  /api/v1/mfa/setup:
+    post:
+      summary: Begin TOTP enrollment and generate recovery codes
+      responses:
+        "200": { description: QR code, secret, and one-time recovery codes }
+        "409": { description: An enabled factor cannot be silently replaced }
+  /api/v1/mfa/enable:
+    post:
+      summary: Enable MFA after verifying a code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string }
+      responses:
+        "200": { description: MFA enabled }
+  /api/v1/mfa/disable:
+    post:
+      summary: Disable MFA after verifying a TOTP or recovery code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string }
+      responses:
+        "200": { description: MFA disabled }
+  /api/v1/admin/users:
+    get:
+      summary: Paginated admin user directory
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: page_size
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: role
+          schema: { type: string }
+      responses:
+        "200": { description: User directory and pagination metadata }
+        "403": { description: Admin role required }
+  /api/v1/admin/sessions:
+    get:
+      summary: List active sessions across users (admin only)
+      responses:
+        "200": { description: Active sessions }
+        "403": { description: Admin role required }
+  /api/v1/admin/sessions/{id}:
+    delete:
+      summary: Revoke a session by ID (admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Session revoked }
+        "403": { description: Admin role required }
+  /api/v1/admin/roles:
+    get:
+      summary: List role definitions (admin only)
+      responses:
+        "200": { description: Roles }
+  /api/v1/admin/permissions:
+    get:
+      summary: List permission definitions (admin only)
+      responses:
+        "200": { description: Permissions }
+  /api/v1/admin/audit-logs:
+    get:
+      summary: List recent audit events (admin only)
+      responses:
+        "200": { description: Audit events }
+  /api/v1/admin/users/roles:
+    post:
+      summary: Assign a role to a user (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, role_name]
+              properties:
+                user_id: { type: string, format: uuid }
+                role_name: { type: string }
+      responses:
+        "200": { description: Role assigned }
+    delete:
+      summary: Remove a role from a user (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, role_name]
+              properties:
+                user_id: { type: string, format: uuid }
+                role_name: { type: string }
+      responses:
+        "200": { description: Role removed }
+  /api/v1/oauth/google/login:
+    get:
+      security: []
+      summary: Start Google OAuth flow
+      responses:
+        "307": { description: Redirect to Google }
+  /api/v1/oauth/google/callback:
+    get:
+      security: []
+      summary: Google OAuth callback (returns JSON auth response)
+      responses:
+        "200": { description: Auth response }
+  /api/v1/oauth/github/login:
+    get:
+      security: []
+      summary: Start GitHub OAuth flow
+      responses:
+        "307": { description: Redirect to GitHub }
+  /api/v1/oauth/github/callback:
+    get:
+      security: []
+      summary: GitHub OAuth callback (returns JSON auth response)
+      responses:
+        "200": { description: Auth response }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

@@ -1,4 +1,4 @@
-// Package main is the entry point for the Auth Service.
+// Package main is the entry point for the Sentinel API.
 package main
 
 import (
@@ -12,8 +12,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/MehulChamoli/auth-service/config"
-	"github.com/MehulChamoli/auth-service/pkg/logger"
+	"github.com/017Mehul/sentinel/config"
+	"github.com/017Mehul/sentinel/pkg/logger"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 )
@@ -33,7 +33,7 @@ func main() {
 		ServiceName: cfg.App.Name, ServiceVersion: Version,
 	})
 	l.Info().Str("env", cfg.App.Env).Int("http_port", cfg.App.Port).
-		Int("grpc_port", cfg.App.GRPCPort).Msg("starting auth service")
+		Int("grpc_port", cfg.App.GRPCPort).Msg("starting Sentinel API")
 
 	app, cleanup, err := InitializeApp(cfg)
 	if err != nil {
@@ -74,7 +74,6 @@ func main() {
 		}
 	}()
 
-	go app.Workers.Start()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -104,8 +103,7 @@ func main() {
 		app.GRPCServer.Stop()
 	}
 
-	app.Workers.Stop()
-	l.Info().Msg("auth service stopped cleanly")
+	l.Info().Msg("Sentinel API stopped cleanly")
 }
 
 func getEnv(key, fallback string) string {

@@ -116,14 +116,6 @@
       return '<tr><td>'+esc(relative(a.created_at))+'</td><td>'+esc(a.action||"Event")+'</td><td>'+esc(a.actor_id||a.user_id||"System")+'</td><td>'+esc(a.ip_address||"—")+'</td><td><span class="event '+(failed?"blocked":"success")+'">● '+(failed?"Review":"Recorded")+'</span></td></tr>';
     }).join(""):'<tr><td colspan="5">No audit events returned by the API.</td></tr>';
   }
-  async function refreshAccessToken() {
-    const payload=await request("/api/v1/auth/refresh",{method:"POST",body:state.refreshToken?JSON.stringify({refresh_token:state.refreshToken}):undefined,skipRefresh:true});
-    if(!payload.access_token)throw new Error("Refresh endpoint did not return an access token.");
-    state.accessToken=payload.access_token;
-    if(payload.refresh_token)state.refreshToken=payload.refresh_token;
-    if(payload.csrf_token)state.csrfToken=payload.csrf_token;
-    return state.accessToken;
-  }
   async function logoutSession() {
     if(!state.accessToken)return disconnect();
     try { await request("/api/v1/auth/logout",{method:"POST",body:state.refreshToken?JSON.stringify({refresh_token:state.refreshToken}):undefined,skipRefresh:true}); }

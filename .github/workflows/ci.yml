@@ -18,12 +18,6 @@ jobs:
         with:
           go-version: "1.26.9"
           cache: false
-      - name: Set up Node.js for frontend checks
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Check frontend JavaScript syntax
-        run: node --check web/app.js && node --check web/tests/connected-screenshot.mjs
       - name: Cache Go modules
         uses: actions/cache@v4
         with:
@@ -53,6 +47,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Check frontend package scripts
+        run: npm run check
       - name: Validate web console JavaScript
         run: |
           node --check web/app.js

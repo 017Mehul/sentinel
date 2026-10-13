@@ -231,26 +231,46 @@
       renderSessions(); toast("Session revoked.");
     } catch(err) { toast("Session revocation failed: "+err.message); }
   }
-  async function runFeatureAction(action,button) {
+  async function loadAdminSessions() {
+    const data=await request("/api/v1/admin/sessions");
+    state.sessions=data.sessions||[];renderSessions();
+  }
+  async function revokeAdminSession(id) {
+    if(!id)return toast("Missing session ID.");
+    if(!window.confirm("Revoke this user's session? This immediately signs that session out."))return;
+    try{await request("/api/v1/admin/sessions/"+encodeURIComponent(id),{method:"DELETE"});state.sessions=state.sessions.filter(x=>String(x.id)!==String(id));renderSessions();toast("Session revoked.");}
+    catch(err){toast("Session revocation failed: "+err.message);}
+  }
+  function bindFeatureForms() {
+    const mfa=$("#mfaCodeForm");
+    if(mfa)mfa.addEventListener("submit",async e=>{
+      e.preventDefault();const op=e.submitter?.value;if(!["enable","disable"].includes(op))return;
+      const code=new FormData(mfa).get("code")?.toString().trim()||"";const err=$("#mfaError");if(err)err.textContent="";
+      try{await request("/api/v1/mfa/"+op,{method:"POST",body:JSON.stringify({code})});state.mfaSetup=null;const st=await request("/api/v1/mfa/status");state.mfa={enabled:!!st.enabled,configured:!!st.configured};renderFeaturePanel("mfa");bindFeatureForms();toast("MFA "+(op==="enable"?"enabled":"disabled")+".");}
+      catch(ex){if(err)err.textContent=ex.message;else toast(ex.message);}
+    });
+    const profile=$("#profileForm");
+    if(profile)profile.addEventListener("submit",async e=>{
+      e.preventDefault();const err=$("#profileError");if(err)err.textContent="";
+      const data=Object.fromEntries(new FormData(profile));if(!data.avatar_url)delete data.avatar_url;
+      try{const result=await request("/api/v1/users/me",{method:"PATCH",body:JSON.stringify(data)});state.user=result.user||result;renderUserIdentity();renderFeaturePanel("settings");bindFeatureForms();toast("Profile saved.");}
+      catch(ex){if(err)err.textContent=ex.message;else toast(ex.message);}
+    });
+    const roles=$("#roleAssignmentForm");
+    if(roles)roles.addEventListener("submit",async e=>{
+      e.preventDefault();const data=Object.fromEntries(new FormData(roles));const op=e.submitter?.value;
+      try{await request("/api/v1/admin/users/roles",{method:op==="remove"?"DELETE":"POST",body:JSON.stringify({user_id:data.user_id,role_name:data.role_name})});toast(op==="remove"?"Role revoked.":"Role assigned.");await loadLiveData();renderFeaturePanel("users");bindFeatureForms();}
+      catch(ex){const err=$("#roleError");if(err)err.textContent=ex.message;else toast(ex.message);}
+    });
+  }
+  async function runFeatureAction(action) {
     try {
-      if(action==="mfa-setup") {
-        state.mfaSetup=await request("/api/v1/mfa/setup",{method:"POST",body:"{}"});
-        const status=await request("/api/v1/mfa/status");
-        state.mfa={enabled:!!status.enabled,configured:!!status.configured};
-        renderFeaturePanel("mfa"); bindFeatureForms();
-      } else if(action==="mfa-refresh") {
-        const status=await request("/api/v1/mfa/status");
-        state.mfa={enabled:!!status.enabled,configured:!!status.configured};
-        renderFeaturePanel("mfa"); bindFeatureForms();
-      } else if(action==="logout") {
-        await logoutSession();
-      } else if(action==="refresh-health") {
-        await loadLiveData(); renderFeaturePanel("security");
-      } else if(action==="oauth-google"||action==="oauth-github") {
-        const provider=action==="oauth-google"?"google":"github";
-        window.open(state.base+"/api/v1/oauth/"+provider+"/login","_blank","noopener,noreferrer");
-      }
-    } catch(err) { toast(err.message||"Action failed."); }
+      if(action==="mfa-setup"){state.mfaSetup=await request("/api/v1/mfa/setup",{method:"POST",body:"{}"});const st=await request("/api/v1/mfa/status");state.mfa={enabled:!!st.enabled,configured:!!st.configured};renderFeaturePanel("mfa");bindFeatureForms();}
+      else if(action==="mfa-refresh"){const st=await request("/api/v1/mfa/status");state.mfa={enabled:!!st.enabled,configured:!!st.configured};renderFeaturePanel("mfa");bindFeatureForms();}
+      else if(action==="logout"){await logoutSession();}
+      else if(action==="refresh-health"){await loadLiveData();renderFeaturePanel("security");}
+      else if(action==="oauth-google"||action==="oauth-github"){const provider=action==="oauth-google"?"google":"github";window.open(state.base+"/api/v1/oauth/"+provider+"/login","_blank","noopener,noreferrer");}
+    }catch(err){toast(err.message||"Action failed.");}
   }
   function setPage(p){
     const [t,sub]=titles[p]||titles.overview;

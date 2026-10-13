@@ -223,25 +223,6 @@
       renderSessions(); toast("Session revoked.");
     } catch(err) { toast("Session revocation failed: "+err.message); }
   }
-  async function loadAdminSessions() {
-    const data=await request("/api/v1/admin/sessions");
-    state.sessions=data.sessions||[];renderSessions();
-  }
-  async function revokeAdminSession(id) {
-    if(!id)return toast("Missing session ID.");
-    if(!window.confirm("Revoke this user's session? This immediately signs that session out."))return;
-    try{await request("/api/v1/admin/sessions/"+encodeURIComponent(id),{method:"DELETE"});state.sessions=state.sessions.filter(x=>String(x.id)!==String(id));renderSessions();toast("Session revoked.");}
-    catch(err){toast("Session revocation failed: "+err.message);}
-  }
-  async function runFeatureAction(action) {
-    try {
-      if(action==="mfa-setup"){state.mfaSetup=await request("/api/v1/mfa/setup",{method:"POST",body:"{}"});const st=await request("/api/v1/mfa/status");state.mfa={enabled:!!st.enabled,configured:!!st.configured};renderFeaturePanel("mfa");bindFeatureForms();}
-      else if(action==="mfa-refresh"){const st=await request("/api/v1/mfa/status");state.mfa={enabled:!!st.enabled,configured:!!st.configured};renderFeaturePanel("mfa");bindFeatureForms();}
-      else if(action==="logout"){await logoutSession();}
-      else if(action==="refresh-health"){await loadLiveData();renderFeaturePanel("security");}
-      else if(action==="oauth-google"||action==="oauth-github"){const provider=action==="oauth-google"?"google":"github";window.open(state.base+"/api/v1/oauth/"+provider+"/login","_blank","noopener,noreferrer");}
-    }catch(err){toast(err.message||"Action failed.");}
-  }
   function setPage(p){
     const [t,sub]=titles[p]||titles.overview;
     $("#pageTitle").textContent=t; $("#pageSubtitle").textContent=sub;
@@ -277,23 +258,15 @@
       }catch(ex){toast(ex.message||"Action failed.");}
     });
     feature.addEventListener("submit",async e=>{
-      e.preventDefault();const form=e.target;
+      const form=e.target;
+      if(form.id!=="roleAssignmentForm")return;
+      e.preventDefault();
       try{
-        if(form.id==="profileForm"){
-          const data=Object.fromEntries(new FormData(form));if(!data.avatar_url)delete data.avatar_url;const profile=await request("/api/v1/users/me",{method:"PATCH",body:JSON.stringify(data)});
-          state.user=profile.user||profile;renderUserIdentity();toast("Profile saved.");renderFeaturePanel("settings");
-        }else if(form.id==="mfaCodeForm"){
-          const code=new FormData(form).get("code");const op=e.submitter?.value;
-          await request("/api/v1/mfa/"+(op==="disable"?"disable":"enable"),{method:"POST",body:JSON.stringify({code})});
-          state.mfa=await request("/api/v1/mfa/status");state.mfaSetup=null;renderFeaturePanel("mfa");toast(op==="disable"?"MFA disabled.":"MFA enabled.");
-        }else if(form.id==="roleAssignmentForm"){
-          const data=Object.fromEntries(new FormData(form));const op=e.submitter?.value;
-          await request("/api/v1/admin/users/roles",{method:op==="remove"?"DELETE":"POST",body:JSON.stringify({user_id:data.user_id,role_name:data.role_name})});
-          toast(op==="remove"?"Role revoked.":"Role assigned.");await loadLiveData();renderFeaturePanel("users");
-        }
+        const data=Object.fromEntries(new FormData(form));const op=e.submitter?.value;
+        await request("/api/v1/admin/users/roles",{method:op==="remove"?"DELETE":"POST",body:JSON.stringify({user_id:data.user_id,role_name:data.role_name})});
+        toast(op==="remove"?"Role revoked.":"Role assigned.");await loadLiveData();renderFeaturePanel("users");bindFeatureForms();
       }catch(ex){const err=form.querySelector(".form-error");if(err)err.textContent=ex.message;else toast(ex.message);}
     });
-
 
   }
   function buildChart(){const bars=[52,64,72,82,96,88,122,108,142,128,162,149,176,156,136,112,101,88,112,82,108,67],chart=$("#activityChart");if(!chart)return;bars.forEach(v=>{const b=document.createElement("div"),s=document.createElement("i"),f=document.createElement("i"),m=document.createElement("i");b.className="bar";s.className="s";f.className="f";m.className="m";s.style.height=Math.max(20,v)+"%";f.style.height=Math.max(5,v*.14)+"%";m.style.height=Math.max(7,v*.22)+"%";b.append(s,f,m);chart.appendChild(b);});}

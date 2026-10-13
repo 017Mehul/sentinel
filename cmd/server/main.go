@@ -12,8 +12,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/MehulChamoli/auth-service/config"
-	"github.com/MehulChamoli/auth-service/pkg/logger"
+	"github.com/017Mehul/sentinel/config"
+	"github.com/017Mehul/sentinel/pkg/logger"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 )

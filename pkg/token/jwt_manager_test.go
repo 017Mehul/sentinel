@@ -13,7 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/MehulChamoli/auth-service/config"
+	"github.com/017Mehul/sentinel/config"
 )
 
 func newTestManager(t *testing.T, accessTTL time.Duration) *Manager {

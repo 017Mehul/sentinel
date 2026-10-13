@@ -175,6 +175,60 @@
       panel.innerHTML='<div class="panel-head"><div><h2>Sentinel API</h2><p>Connect the console to view real backend data.</p></div></div><p class="feature-copy">Use Connect API to authenticate. Administrative actions require an account with the appropriate role.</p>';
     }
   }
+  function bindFeatureForms() {
+    const mfaForm=$("#mfaCodeForm");
+    if(mfaForm)mfaForm.addEventListener("submit",async e=>{
+      e.preventDefault();
+      const submitter=e.submitter; const operation=submitter?.value;
+      if(!["enable","disable"].includes(operation))return;
+      const code=new FormData(mfaForm).get("code")?.toString().trim()||"";
+      const error=$("#mfaError"); if(error)error.textContent="";
+      mfaForm.querySelectorAll("button").forEach(b=>b.disabled=true);
+      try {
+        await request("/api/v1/mfa/"+operation,{method:"POST",body:JSON.stringify({code})});
+        state.mfaSetup=null;
+        const status=await request("/api/v1/mfa/status");
+        state.mfa={enabled:!!status.enabled,configured:!!status.configured};
+        renderFeaturePanel("mfa"); bindFeatureForms();
+        toast("MFA "+(operation==="enable"?"enabled":"disabled")+".");
+      } catch(err) { if(error)error.textContent=err.message; toast("MFA update failed: "+err.message); }
+      finally { mfaForm.querySelectorAll("button").forEach(b=>b.disabled=false); }
+    });
+    const profileForm=$("#profileForm");
+    if(profileForm)profileForm.addEventListener("submit",async e=>{
+      e.preventDefault();
+      const error=$("#profileError"); if(error)error.textContent="";
+      const data=new FormData(profileForm);
+      const payload={full_name:data.get("full_name")?.toString().trim()||"",avatar_url:data.get("avatar_url")?.toString().trim()||""};
+      try {
+        const updated=await request("/api/v1/users/me",{method:"PATCH",body:JSON.stringify(payload)});
+        state.user=updated.user||updated;
+        renderUserIdentity(); renderFeaturePanel("settings"); bindFeatureForms();
+        toast("Profile saved.");
+      } catch(err) { if(error)error.textContent=err.message; toast("Profile update failed: "+err.message); }
+    });
+  }
+  async function runFeatureAction(action,button) {
+    try {
+      if(action==="mfa-setup") {
+        state.mfaSetup=await request("/api/v1/mfa/setup",{method:"POST",body:"{}"});
+        const status=await request("/api/v1/mfa/status");
+        state.mfa={enabled:!!status.enabled,configured:!!status.configured};
+        renderFeaturePanel("mfa"); bindFeatureForms();
+      } else if(action==="mfa-refresh") {
+        const status=await request("/api/v1/mfa/status");
+        state.mfa={enabled:!!status.enabled,configured:!!status.configured};
+        renderFeaturePanel("mfa"); bindFeatureForms();
+      } else if(action==="logout") {
+        await logoutSession();
+      } else if(action==="refresh-health") {
+        await loadLiveData(); renderFeaturePanel("security");
+      } else if(action==="oauth-google"||action==="oauth-github") {
+        const provider=action==="oauth-google"?"google":"github";
+        window.open(state.base+"/api/v1/oauth/"+provider+"/login","_blank","noopener,noreferrer");
+      }
+    } catch(err) { toast(err.message||"Action failed."); }
+  }
   function setPage(p){
     const [t,sub]=titles[p]||titles.overview;
     $("#pageTitle").textContent=t; $("#pageSubtitle").textContent=sub;
@@ -182,7 +236,7 @@
     const overview=p==="overview";
     [$(".metrics-grid"),$(".overview-grid"),$(".tables-grid"),$(".bottom-grid")].forEach(el=>{if(el)el.hidden=!overview;});
     const live=$(".live-data-tables"); if(live){live.hidden=overview;live.querySelectorAll("article").forEach(article=>{const h=article.querySelector("h2")?.textContent||"";article.hidden=!(p==="sessions"&&h==="Active Sessions"||p==="audit"&&h==="Live Audit Events"||p==="roles"&&(h==="Backend Roles"||h==="Backend Permissions"));});}
-    const feature=$("#featurePanel"); if(feature){feature.hidden=overview||["roles","sessions","audit"].includes(p);if(!feature.hidden)renderFeaturePanel(p);}
+    const feature=$("#featurePanel"); if(feature){feature.hidden=overview||["roles","sessions","audit"].includes(p);if(!feature.hidden){renderFeaturePanel(p);bindFeatureForms();}}
     if(p==="users"&&state.accessToken)toast(state.users.length+" users loaded from API.");
     else if(p==="roles"&&state.accessToken)toast((state.rolesData?.length||0)+" roles loaded from API.");
     else if(p==="sessions"&&state.accessToken)toast(state.sessions.length+" sessions loaded from API.");
@@ -235,6 +289,7 @@
   document.addEventListener("DOMContentLoaded",()=>{buildChart();addDataTables();setConnection(false);
     $$(".nav-item").forEach(b=>b.addEventListener("click",()=>setPage(b.dataset.page)));
     $$("[data-page-jump]").forEach(b=>b.addEventListener("click",()=>setPage(b.dataset.pageJump)));
+    document.addEventListener("click",e=>{const button=e.target.closest("[data-feature-action]");if(button){e.preventDefault();runFeatureAction(button.dataset.featureAction,button);}});
     $$("[data-action]").forEach(b=>b.addEventListener("click",()=>{const a=b.dataset.action;if(a==="docs")window.open("https://github.com/017Mehul/sentinel","_blank","noopener");else if(a==="add-user")toast("User creation endpoint is not exposed by the current API.");else if(a==="revoke-current-session")revokeCurrentSession();else setPage(a)}));
     $(".select-btn")?.addEventListener("click",()=>toast("Time range filtering is not exposed by the current API."));
     $(".profile-btn")?.addEventListener("click",()=>state.accessToken?disconnect():showConnectDialog());

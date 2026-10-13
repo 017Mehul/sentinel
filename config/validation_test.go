@@ -87,3 +87,35 @@ func TestProductionConfigRejectsWildcardOrNonOriginCORS(t *testing.T) {
 		})
 	}
 }
+
+func TestProductionConfigRejectsIncompleteOAuthCredentials(t *testing.T) {
+	cfg := validProductionConfig(t)
+	cfg.OAuth.Google.ClientID = "google-client-id"
+	cfg.OAuth.Google.ClientSecret = ""
+
+	err := validate(cfg)
+	if err == nil || !strings.Contains(err.Error(), "google OAuth client ID and secret must be configured together") {
+		t.Fatalf("expected incomplete OAuth credentials to fail closed, got: %v", err)
+	}
+}
+
+func TestProductionConfigRejectsPlaceholderAESKey(t *testing.T) {
+	cfg := validProductionConfig(t)
+	cfg.Security.AESEncryptionKey = "local-dev-change-me-aes-key-32!!"
+
+	err := validate(cfg)
+	if err == nil || !strings.Contains(err.Error(), "security.aes_encryption_key must be a non-default value") {
+		t.Fatalf("expected placeholder AES key to be rejected, got: %v", err)
+	}
+}
+
+func TestProductionConfigRequiresDirectTLSCertificatesWhenEnabled(t *testing.T) {
+	cfg := validProductionConfig(t)
+	cfg.TLS.TerminatedByProxy = false
+	cfg.TLS.Enabled = true
+
+	err := validate(cfg)
+	if err == nil || !strings.Contains(err.Error(), "tls.cert_file and tls.key_file") {
+		t.Fatalf("expected direct TLS certificate paths to be required, got: %v", err)
+	}
+}

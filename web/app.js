@@ -74,7 +74,7 @@
   }
   function renderSessions() {
     const body=$("#sessionsTable"); if(!body)return;
-    body.innerHTML=state.sessions.length?state.sessions.map(s=>'<tr><td>'+esc(s.id||s.session_id||"Session")+'</td><td>'+esc(s.email||s.device_info?.user_agent||s.user_agent||s.device||"Unknown device")+'</td><td>'+esc(s.ip_address||s.ip||"—")+'</td><td>'+esc(relative(s.created_at||s.last_active_at||s.last_seen_at))+'</td><td><span class="status active">● Active</span>'+(s.email? ' <button class="text-btn" data-revoke-session="'+esc(s.id||s.session_id||"")+'">Revoke</button>':'')+'</td></tr>').join(""):'<tr><td colspan="5">No active sessions returned by the API.</td></tr>';
+    body.innerHTML=state.sessions.length?state.sessions.map(s=>'<tr><td>'+esc(s.id||s.session_id||"Session")+'</td><td>'+esc(s.email||s.device_info?.user_agent||s.user_agent||s.device||"Unknown device")+'</td><td>'+esc(s.ip_address||s.ip||"—")+'</td><td>'+esc(relative(s.created_at||s.last_active_at||s.last_seen_at))+'</td><td><span class="status active">● Active</span>'+(s.user_id? ' <button class="text-btn" data-revoke-session="'+esc(s.id||s.session_id||"")+'">Revoke session</button>':'')+'</td></tr>').join(""):'<tr><td colspan="5">No active sessions returned by the API.</td></tr>';
   }
   function renderAudit() {
     const body=$("#auditTable"); if(!body)return;

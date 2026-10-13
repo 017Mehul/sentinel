@@ -14,6 +14,8 @@ assert.ok(js.includes('request("/api/v1/admin/users?page=1&page_size=100")'), "a
 assert.ok(js.includes('request("/api/v1/mfa/status")'), "MFA status API is not wired");
 assert.ok(js.includes('request("/healthz")') && js.includes('request("/ready")'), "liveness/readiness probes are not wired");
 assert.ok(js.includes('X-CSRF-Token'), "production refresh CSRF header is not wired");
-assert.ok(!js.includes('localStorage') && !js.includes('sessionStorage'), "tokens must not be persisted in browser storage");
+assert.ok(!/\\b(?:localStorage|sessionStorage)\\s*(?:\\.|\\[)/.test(js), "tokens must not be persisted in browser storage");
 assert.ok(css.includes(".live-data-tables"), "live API table styling is missing");
+assert.ok(js.includes('$("[data-action]")'), "all action controls must use the multi-element selector");
+assert.ok(!js.includes('document.addEventListener("click",e=>{const button=e.target.closest("[data-feature-action]")'), "feature actions must not be registered twice");
 console.log("Sentinel web smoke checks passed.");

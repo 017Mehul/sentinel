@@ -29,10 +29,12 @@
   async function request(path, options={}, retried=false) {
     if (!state.base) throw new Error("Set the Sentinel API base URL first.");
     const headers = { Accept:"application/json", ...(options.body ? {"Content-Type":"application/json"} : {}), ...(state.accessToken ? {Authorization:"Bearer "+state.accessToken} : {}), ...((state.csrfToken && (path.endsWith("/api/v1/auth/refresh") || path.endsWith("/api/v1/auth/logout"))) ? {"X-CSRF-Token":state.csrfToken} : {}), ...(options.headers||{}) };
-    const res = await fetch(state.base+path,{...options,headers,credentials:"include"});
+    const fetchOptions={...options,headers,credentials:"include"};
+    delete fetchOptions.skipRefresh;
+    const res = await fetch(state.base+path,fetchOptions);
     if (res.status===401 && !retried && state.accessToken && path!=="/api/v1/auth/login" && path!=="/api/v1/auth/refresh" && !options.skipRefresh) {
-      if (await refreshAccessToken()) return request(path,options,true);
-      state.accessToken=""; state.refreshToken=""; state.csrfToken=""; state.user=null;
+      try { await refreshAccessToken(); return request(path,options,true); }
+      catch { state.accessToken=""; state.refreshToken=""; state.csrfToken=""; state.user=null; disconnect(); }
     }
     const text = await res.text(); let body={}; try { body=text ? JSON.parse(text) : {}; } catch { body={message:text}; }
     if (!res.ok) throw new Error(body.message || body.error?.message || body.error || ("Request failed ("+res.status+")"));

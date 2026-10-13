@@ -27,6 +27,12 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.mod') }}
           restore-keys: |
             ${{ runner.os }}-go-
+      - name: Reject legacy module imports
+        run: |
+          if grep -R -n --include='*.go' --include='*.proto' --include='Makefile' 'github.com/MehulChamoli/auth-service' .; then
+            echo "Legacy auth-service module path found; use github.com/017Mehul/sentinel."
+            exit 1
+          fi
       - name: Tidy and download dependencies
         run: |
           go mod tidy

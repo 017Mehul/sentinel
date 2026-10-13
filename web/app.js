@@ -52,7 +52,17 @@
     });
     d.addEventListener("close",()=>d.remove(),{once:true});
   }
+  function renderHealthBadge() {
+    const badge=$(".head-actions .health"); if(!badge)return;
+    let label="Not connected";
+    if(state.accessToken&&state.health) {
+      label=state.health.live&&state.health.ready?"API ready":state.health.live?"API online · dependencies not ready":"API unreachable";
+    }
+    badge.innerHTML='<i></i> '+esc(label);
+    badge.title=state.accessToken?"Live /ready and /healthz results from the connected API.":"Connect the API to check readiness.";
+  }
   function setConnection(connected) {
+    renderHealthBadge();
     const pill=$(".demo-pill"); if(pill){pill.innerHTML='<i></i> '+(connected?"Live API connected":"Demo environment");pill.classList.toggle("live-pill",connected);}
     let b=$("#connectButton"); if(!b){b=document.createElement("button");b.id="connectButton";b.className="connect-button";$(".top-actions")?.prepend(b);b.addEventListener("click",()=>state.accessToken ? disconnect() : showConnectDialog());}
     b.textContent=connected?"Disconnect":"Connect API";
@@ -135,6 +145,7 @@
     if(users.status==="fulfilled")state.users=value(users,"users");
     if(mfa.status==="fulfilled")state.mfa={enabled:!!mfa.value.enabled,configured:!!mfa.value.configured};
     state.health={live:healthz.status==="fulfilled",ready:health.status==="fulfilled",version:version.status==="fulfilled"?version.value:null};
+    renderHealthBadge();
     const statusPill=$(".system-status .status-pill"); if(statusPill)statusPill.textContent=state.health.live&&state.health.ready?"● API and dependencies ready":state.health.live?"● API responding; dependencies not ready":"● API not responding";
     const statusRows=$$(".system-status .system-list div");
     if(statusRows[0]?.querySelector("b"))statusRows[0].querySelector("b").textContent=state.health.live?"● Responding":"● Not responding";

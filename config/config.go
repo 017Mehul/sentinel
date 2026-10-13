@@ -279,10 +279,10 @@ func validate(cfg *Config) error {
 	}
 
 	if cfg.IsProduction() {
-		if len(cfg.Database.Password) < 24 || strings.Contains(strings.ToLower(cfg.Database.Password), "changeme") {
+		if len(cfg.Database.Password) < 24 || isPlaceholderSecret(cfg.Database.Password) {
 			errs = append(errs, "database.password must be set to a non-default value in production")
 		}
-		if len(cfg.Redis.Password) < 16 || strings.Contains(strings.ToLower(cfg.Redis.Password), "changeme") {
+		if len(cfg.Redis.Password) < 16 || isPlaceholderSecret(cfg.Redis.Password) {
 			errs = append(errs, "redis.password must be configured in production")
 		}
 		if !cfg.Redis.TLSEnabled {
@@ -300,10 +300,10 @@ func validate(cfg *Config) error {
 		if !cfg.SMTP.TLSEnabled {
 			errs = append(errs, "smtp.tls_enabled must be true in production")
 		}
-		if cfg.SMTP.Username == "" || cfg.SMTP.Password == "" {
+		if cfg.SMTP.Username == "" || isPlaceholderSecret(cfg.SMTP.Username) || len(cfg.SMTP.Password) < 16 || isPlaceholderSecret(cfg.SMTP.Password) {
 			errs = append(errs, "smtp.username and smtp.password must be configured in production")
 		}
-		if (cfg.OAuth.Google.ClientID == "") != (cfg.OAuth.Google.ClientSecret == "") {
+		if cfg.OAuth.Google.ClientID != "" && isPlaceholderSecret(cfg.OAuth.Google.ClientSecret) {\n\t\t\terrs = append(errs, "google OAuth client secret must not be a placeholder in production")\n\t\t}\n\t\tif cfg.OAuth.GitHub.ClientID != "" && isPlaceholderSecret(cfg.OAuth.GitHub.ClientSecret) {\n\t\t\terrs = append(errs, "github OAuth client secret must not be a placeholder in production")\n\t\t}\n\t\tif (cfg.OAuth.Google.ClientID == "") != (cfg.OAuth.Google.ClientSecret == "") {
 			errs = append(errs, "google OAuth client ID and secret must be configured together")
 		}
 		if (cfg.OAuth.GitHub.ClientID == "") != (cfg.OAuth.GitHub.ClientSecret == "") {
@@ -315,10 +315,10 @@ func validate(cfg *Config) error {
 		if cfg.OAuth.GitHub.ClientID != "" && !isHTTPSOriginOrURL(cfg.OAuth.GitHub.RedirectURL) {
 			errs = append(errs, "github OAuth redirect_url must use HTTPS in production")
 		}
-		if len(cfg.OAuth.StateSecret) < 32 || strings.Contains(strings.ToLower(cfg.OAuth.StateSecret), "changeme") {
+		if len(cfg.OAuth.StateSecret) < 32 || isPlaceholderSecret(cfg.OAuth.StateSecret) {
 			errs = append(errs, "oauth.state_secret must be set to a non-default value in production")
 		}
-		if cfg.Security.AESEncryptionKey == "" || strings.Contains(cfg.Security.AESEncryptionKey, "changeme") {
+		if cfg.Security.AESEncryptionKey == "" || isPlaceholderSecret(cfg.Security.AESEncryptionKey) {
 			errs = append(errs, "security.aes_encryption_key must be a non-default value in production")
 		}
 		if cfg.JWT.PrivateKeyPath == "" || cfg.JWT.PublicKeyPath == "" {
@@ -356,6 +356,19 @@ func validate(cfg *Config) error {
 		return fmt.Errorf("invalid configuration:\n  - %s", strings.Join(errs, "\n  - "))
 	}
 	return nil
+}
+
+func isPlaceholderSecret(value string) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return true
+	}
+	for _, marker := range []string{"changeme", "change-me", "replace-me", "placeholder", "your-secret", "example-secret", "dummy-secret"} {
+		if strings.Contains(value, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 func isHTTPSOriginOrURL(value string) bool {

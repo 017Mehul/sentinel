@@ -89,6 +89,15 @@
     const body=$("#permissionsTable");if(!body)return;
     body.innerHTML=state.permissions.length?state.permissions.map(p=>'<tr><td><b>'+esc(p.name)+'</b></td><td>'+esc(p.resource)+'</td><td>'+esc(p.action)+'</td><td>'+esc(p.description||"—")+'</td></tr>').join(""):'<tr><td colspan="4">No permission data available.</td></tr>';
   }
+  async function searchAdminUsers(query="",role="") {
+    const params=new URLSearchParams({page:"1",page_size:"100"});
+    if(query.trim())params.set("search",query.trim());
+    if(role.trim())params.set("role",role.trim());
+    const data=await request("/api/v1/admin/users?"+params.toString());
+    state.users=data.users||[];
+    renderOverviewUsers();
+    return state.users;
+  }
   function renderOverviewUsers() {
     const body=$("#usersTable"); if(!body)return;
     body.innerHTML=state.users.length?state.users.slice(0,5).map(u=>{
@@ -313,5 +322,5 @@
     setPage("overview");
     if(state.base)toast("API URL configured. Select Connect API to sign in.");
   });
-  window.SentinelConsole={connect:showConnectDialog,disconnect,refresh:loadLiveData,revokeCurrentSession,refreshAccessToken,logoutSession,loadAdminSessions,revokeAdminSession};
+  window.SentinelConsole={connect:showConnectDialog,disconnect,refresh:loadLiveData,revokeCurrentSession,refreshAccessToken,logoutSession,loadAdminSessions,revokeAdminSession,searchAdminUsers};
 })();

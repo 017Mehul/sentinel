@@ -1,0 +1,48 @@
+name: Deploy Web Console to Vercel
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy static console
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate deployment configuration
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          SENTINEL_API_BASE: ${{ vars.SENTINEL_API_BASE }}
+        run: |
+          test -n "$VERCEL_TOKEN"
+          test -n "$VERCEL_ORG_ID"
+          test -n "$VERCEL_PROJECT_ID"
+          test -n "$SENTINEL_API_BASE"
+          node --input-type=module -e 'const u=new URL(process.env.SENTINEL_API_BASE); if(u.protocol!=="https:" || u.pathname!=="/" || u.search || u.hash || u.username || u.password) process.exit(1)'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build production assets with locked API origin
+        working-directory: web
+        env:
+          SENTINEL_API_BASE: ${{ vars.SENTINEL_API_BASE }}
+        run: |
+          node build-config.mjs
+          grep -q 'SENTINEL_ALLOW_API_URL_OVERRIDE = false' dist/config.js
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npx --yes vercel@latest deploy web/dist --prod --yes --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID"

@@ -7,7 +7,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: sentinel:release
+    image: ${SENTINEL_IMAGE:-ghcr.io/017mehul/sentinel:latest}
     container_name: sentinel-api
     restart: unless-stopped
     expose:
@@ -79,7 +79,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: sentinel:release
+    image: ${SENTINEL_IMAGE:-ghcr.io/017mehul/sentinel:latest}
     container_name: sentinel-worker
     entrypoint: ["/usr/local/bin/sentinel-worker"]
     restart: unless-stopped

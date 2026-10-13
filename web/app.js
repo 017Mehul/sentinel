@@ -139,6 +139,7 @@
     const value=(result,key)=>result.status==="fulfilled"?(result.value[key]??result.value):[];
     if(me.status==="fulfilled")state.user=me.value.user||me.value;
     state.mySessions=mySessions.status==="fulfilled"?value(mySessions,"sessions"):[]; state.adminSessionView=adminSessions.status==="fulfilled"; state.adminSessions=state.adminSessionView?value(adminSessions,"sessions"):[]; state.sessions=state.adminSessionView?state.adminSessions:state.mySessions;
+    const sessionsDescription=$(".live-data-tables article .panel-head p"); if(sessionsDescription)sessionsDescription.textContent=state.adminSessionView?"All active sessions across users (admin view).":"Sessions visible to the signed-in identity.";
     if(roles.status==="fulfilled")state.rolesData=value(roles,"roles");
     if(permissions.status==="fulfilled")state.permissions=value(permissions,"permissions");
     if(audit.status==="fulfilled")state.audit=value(audit,"audit_logs");

@@ -4,9 +4,10 @@ WORKDIR /src
 
 RUN apk add --no-cache ca-certificates git
 
-COPY go.mod go.sum ./
-COPY . .
+COPY go.mod ./
 RUN go mod download
+COPY . .
+RUN test -s go.sum
 
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/sentinel ./cmd/server \
     && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/sentinel-worker ./cmd/worker

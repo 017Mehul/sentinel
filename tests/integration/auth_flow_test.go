@@ -22,14 +22,14 @@ import (
 	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/MehulChamoli/auth-service/config"
-	"github.com/MehulChamoli/auth-service/internal/admin"
-	"github.com/MehulChamoli/auth-service/internal/api"
-	"github.com/MehulChamoli/auth-service/internal/auth"
-	"github.com/MehulChamoli/auth-service/internal/mfa"
-	"github.com/MehulChamoli/auth-service/internal/user"
-	"github.com/MehulChamoli/auth-service/pkg/cache"
-	"github.com/MehulChamoli/auth-service/pkg/token"
+	"github.com/017Mehul/sentinel/config"
+	"github.com/017Mehul/sentinel/internal/admin"
+	"github.com/017Mehul/sentinel/internal/api"
+	"github.com/017Mehul/sentinel/internal/auth"
+	"github.com/017Mehul/sentinel/internal/mfa"
+	"github.com/017Mehul/sentinel/internal/user"
+	"github.com/017Mehul/sentinel/pkg/cache"
+	"github.com/017Mehul/sentinel/pkg/token"
 )
 
 // testEnv holds all wired-up components for an integration test run.

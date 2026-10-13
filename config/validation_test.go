@@ -38,7 +38,7 @@ func validProductionConfig(t *testing.T) *Config {
 			AESEncryptionKey: "0123456789abcdef0123456789abcdef",
 			BcryptCost:       12,
 		},
-		SMTP: SMTPConfig{Host: "smtp.example.com", Username: "smtp-user", Password: "smtp-password", FromEmail: "security@example.net", TLSEnabled: true},
+		SMTP: SMTPConfig{Host: "smtp.example.com", Username: "smtp-user", Password: "smtp-secret-value-123456", FromEmail: "security@example.net", TLSEnabled: true},
 		CORS: CORSConfig{
 			AllowedOrigins: []string{"https://console.example.com"},
 			AllowCredentials: true,

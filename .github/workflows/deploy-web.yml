@@ -22,23 +22,29 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           SENTINEL_API_BASE: ${{ vars.SENTINEL_API_BASE }}
+          VERCEL_CLI_VERSION: ${{ vars.VERCEL_CLI_VERSION }}
         run: |
           test -n "$VERCEL_TOKEN"
           test -n "$VERCEL_ORG_ID"
           test -n "$VERCEL_PROJECT_ID"
           test -n "$SENTINEL_API_BASE"
+          test -n "$VERCEL_CLI_VERSION"
           node --input-type=module -e 'const u=new URL(process.env.SENTINEL_API_BASE); if(u.protocol!=="https:" || u.pathname!=="/" || u.search || u.hash || u.username || u.password) process.exit(1)'
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Install pinned Vercel CLI
+        env:
+          VERCEL_CLI_VERSION: ${{ vars.VERCEL_CLI_VERSION }}
+        run: npm install --global "vercel@${VERCEL_CLI_VERSION:?set a reviewed exact version}"
       - name: Link Vercel project
         working-directory: web
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: npx --yes vercel@latest link --yes --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
+        run: vercel link --yes --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID"
       - name: Build production assets with locked API origin
         working-directory: web
         env:
@@ -52,4 +58,4 @@ jobs:
         working-directory: web
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: npx --yes vercel@latest deploy --prebuilt --prod --yes --token "$VERCEL_TOKEN"
+        run: vercel deploy --prebuilt --prod --yes

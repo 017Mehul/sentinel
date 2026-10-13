@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const state = { base: (window.SENTINEL_API_BASE || "").replace(/\/$/, ""), accessToken: "", refreshToken: "", csrfToken: "", user: null, roles: [], sessions: [], audit: [], permissions: [], rolesData: [], users: [], mfa: {enabled:false,configured:false}, health: null, mfaSetup: null, refreshing: null };
+  const state = { base: (window.SENTINEL_API_BASE || "").replace(/\/$/, ""), accessToken: "", refreshToken: "", csrfToken: "", user: null, roles: [], sessions: [], audit: [], permissions: [], rolesData: [], users: [], adminSessionView: false, mfa: {enabled:false,configured:false}, health: null, mfaSetup: null, refreshing: null };
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => [...document.querySelectorAll(s)];
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
@@ -57,7 +57,7 @@
     let b=$("#connectButton"); if(!b){b=document.createElement("button");b.id="connectButton";b.className="connect-button";$(".top-actions")?.prepend(b);b.addEventListener("click",()=>state.accessToken ? disconnect() : showConnectDialog());}
     b.textContent=connected?"Disconnect":"Connect API";
   }
-  function disconnect(){state.accessToken="";state.refreshToken="";state.csrfToken="";state.user=null;state.roles=[];state.sessions=[];state.audit=[];state.permissions=[];state.rolesData=[];state.users=[];state.mfa={enabled:false,configured:false};state.health=null;toast("API disconnected. No tokens were persisted.");setTimeout(()=>window.location.reload(),350);}
+  function disconnect(){state.accessToken="";state.refreshToken="";state.csrfToken="";state.user=null;state.roles=[];state.sessions=[];state.audit=[];state.permissions=[];state.rolesData=[];state.users=[];state.adminSessionView=false;state.mfa={enabled:false,configured:false};state.health=null;toast("API disconnected. No tokens were persisted.");setTimeout(()=>window.location.reload(),350);}
   function renderUserIdentity() {
     const u=state.user;if(!u)return;
     const name=u.full_name||u.email||"Authenticated user";
@@ -74,7 +74,7 @@
   }
   function renderSessions() {
     const body=$("#sessionsTable"); if(!body)return;
-    body.innerHTML=state.sessions.length?state.sessions.map(s=>'<tr><td>'+esc(s.id||s.session_id||"Session")+'</td><td>'+esc(s.email||s.device_info?.user_agent||s.user_agent||s.device||"Unknown device")+'</td><td>'+esc(s.ip_address||s.ip||"—")+'</td><td>'+esc(relative(s.created_at||s.last_active_at||s.last_seen_at))+'</td><td><span class="status active">● Active</span>'+(s.user_id? ' <button class="text-btn" data-revoke-session="'+esc(s.id||s.session_id||"")+'">Revoke session</button>':'')+'</td></tr>').join(""):'<tr><td colspan="5">No active sessions returned by the API.</td></tr>';
+    body.innerHTML=state.sessions.length?state.sessions.map(s=>'<tr><td>'+esc(s.id||s.session_id||"Session")+'</td><td>'+esc(s.email||s.device_info?.user_agent||s.user_agent||s.device||"Unknown device")+'</td><td>'+esc(s.ip_address||s.ip||"—")+'</td><td>'+esc(relative(s.created_at||s.last_active_at||s.last_seen_at))+'</td><td><span class="status active">● Active</span>'+(state.adminSessionView&&s.user_id? ' <button class="text-btn" data-revoke-session="'+esc(s.id||s.session_id||"")+'">Revoke session</button>':'')+'</td></tr>').join(""):'<tr><td colspan="5">No active sessions returned by the API.</td></tr>';
   }
   function renderAudit() {
     const body=$("#auditTable"); if(!body)return;
@@ -128,7 +128,7 @@
     ]);
     const value=(result,key)=>result.status==="fulfilled"?(result.value[key]??result.value):[];
     if(me.status==="fulfilled")state.user=me.value.user||me.value;
-    if(adminSessions.status==="fulfilled")state.sessions=value(adminSessions,"sessions"); else if(mySessions.status==="fulfilled")state.sessions=value(mySessions,"sessions");
+    state.adminSessionView=adminSessions.status==="fulfilled"; if(state.adminSessionView)state.sessions=value(adminSessions,"sessions"); else if(mySessions.status==="fulfilled")state.sessions=value(mySessions,"sessions");
     if(roles.status==="fulfilled")state.rolesData=value(roles,"roles");
     if(permissions.status==="fulfilled")state.permissions=value(permissions,"permissions");
     if(audit.status==="fulfilled")state.audit=value(audit,"audit_logs");

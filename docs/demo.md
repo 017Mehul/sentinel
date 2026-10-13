@@ -42,7 +42,7 @@ Never paste secrets into GitHub issues, README files, screenshots, or chat logs.
 
 ## Connected screenshot
 
-A real connected screenshot is not committed as sample art. Run the manual Connected Console Screenshot GitHub Actions workflow after a reachable API and a dedicated demo account exist. Store SENTINEL_API_BASE, SENTINEL_DEMO_EMAIL, and SENTINEL_DEMO_PASSWORD as protected repository secrets. The workflow fails instead of capturing a screenshot if login and the live API connection indicator do not succeed.
+A real connected screenshot is not committed as sample art. Run the manual Connected Console Screenshot GitHub Actions workflow after a reachable API and a dedicated demo account exist. Store SENTINEL_CONSOLE_URL, SENTINEL_API_BASE, SENTINEL_DEMO_EMAIL, and SENTINEL_DEMO_PASSWORD as protected repository secrets. The workflow fails instead of capturing a screenshot if login and the live API connection indicator do not succeed.
 
 ## Static console deployment (Vercel)
 

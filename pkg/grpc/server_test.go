@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MehulChamoli/auth-service/config"
-	authv1 "github.com/MehulChamoli/auth-service/proto/auth/v1"
+	"github.com/017Mehul/sentinel/config"
+	authv1 "github.com/017Mehul/sentinel/proto/auth/v1"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

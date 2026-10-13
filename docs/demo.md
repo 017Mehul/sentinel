@@ -16,6 +16,15 @@ Prerequisites: Go 1.26.9, Docker Compose, OpenSSL, and Node.js 22 for frontend s
 
 Do not create a public demo account with admin privileges or publish credentials in the repository. For a public demo, use a disposable account with minimal seeded data, rotate its password regularly, and restrict permissions.
 
+## Publish and run the production image
+
+- Run the **Publish Sentinel Container** workflow manually, or push a version tag such as `v1.0.0`.
+- The workflow publishes `ghcr.io/017mehul/sentinel:latest` for manual runs and versioned tags plus a commit-SHA tag.
+- On your production host, authenticate to GHCR if the package is private, set `SENTINEL_IMAGE=ghcr.io/017mehul/sentinel:<tag>`, and use `docker compose -f docker-compose.production.yml pull` followed by `docker compose -f docker-compose.production.yml up -d --no-build`.
+- Keep the API and worker on private ingress. Only the trusted TLS proxy should be able to reach the API's exposed internal port.
+
+Publishing the image does not provision managed PostgreSQL/Redis or deploy the service to a hosting provider; those still require a configured production environment and credentials.
+
 ## Production deployment preparation
 
 docker-compose.production.yml is a reference template for an API/worker pair behind a trusted HTTPS reverse proxy. It expects externally managed PostgreSQL and Redis. Before starting it:

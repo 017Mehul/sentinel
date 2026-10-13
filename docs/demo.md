@@ -16,17 +16,6 @@ Prerequisites: Go 1.26.9, Docker Compose, OpenSSL, and Node.js 22 for frontend s
 
 Do not create a public demo account with admin privileges or publish credentials in the repository. For a public demo, use a disposable account with minimal seeded data, rotate its password regularly, and restrict permissions.
 
-## Static console deployment on Vercel
-
-1. Import the GitHub repository into Vercel.
-2. Set the **Root Directory** to `web` and enable including files outside the root only if your project setup requires it (the web build is self-contained).
-3. Use the default build command from `web/vercel.json`: `node build-config.mjs`; output directory: `dist`.
-4. Set `SENTINEL_API_BASE` as a Vercel build-time environment variable to the final HTTPS API origin (origin only, no path/query/credentials). The build intentionally fails if this is missing or not HTTPS.
-5. Configure the Go API's `CORS_ALLOWED_ORIGINS` to the exact Vercel production domain and any explicit preview domain that you actually intend to allow. Avoid wildcard origins for production.
-6. Deploy and verify the browser network panel shows successful `/api/v1/auth/login`, `/api/v1/users/me`, and `/ready` requests. Do not publish a screenshot until the live connection pill appears.
-
-The repository does not have Vercel project identifiers or deployment credentials, so a live deployment must be initiated from your Vercel account.
-
 ## Production deployment preparation
 
 docker-compose.production.yml is a reference template for an API/worker pair behind a trusted HTTPS reverse proxy. It expects externally managed PostgreSQL and Redis. Before starting it:
@@ -48,7 +37,7 @@ A real connected screenshot is not committed as sample art. Run the manual Conne
 
 ## Static console deployment (Vercel)
 
-The repository includes a manual GitHub Actions workflow named **Deploy Web Console to Vercel**. It deploys only the static frontend; it does not provision or deploy the Go API.
+The repository includes a manual GitHub Actions workflow named **Deploy Web Console to Vercel**. It deploys only the static frontend; it does not provision or deploy the Go API. For a manual Vercel setup instead, set the project root to `web`, use `node build-config.mjs`, and set `SENTINEL_API_BASE` as a build-time environment variable.
 
 Configure the following before running it:
 

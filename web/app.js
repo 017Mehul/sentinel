@@ -67,7 +67,7 @@
   }
   async function revokeCurrentSession(){
     if(!state.accessToken)return toast("Connect to the Sentinel API first.");
-    try{await request("/api/v1/sessions/current",{method:"DELETE"});toast("Current session revoked. Signing out…");setTimeout(()=>disconnect(),500);}
+    try{await request("/api/v1/sessions/current",{method:"DELETE"});toast("Current session revoked. Signing out…");disconnect();}
     catch(ex){toast("Could not revoke the current session: "+ex.message);}
   }
   function renderSessions() {

@@ -78,7 +78,7 @@ type DisableRequest struct {
 func NewRepository(db *pgxpool.Pool) *Repository { return &Repository{db: db} }
 
 func NewService(repo *Repository, users *user.Repository, security *config.SecurityConfig) *Service {
-	return &Service{repo: repo, users: users, security: *security, appName: "auth-service"}
+	return &Service{repo: repo, users: users, security: *security, appName: "Sentinel"}
 }
 
 func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }

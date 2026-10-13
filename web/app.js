@@ -33,8 +33,15 @@
     delete fetchOptions.skipRefresh;
     const res = await fetch(state.base+path,fetchOptions);
     if (res.status===401 && !retried && state.accessToken && path!=="/api/v1/auth/login" && path!=="/api/v1/auth/refresh" && !options.skipRefresh) {
-      try { await refreshAccessToken(); return request(path,options,true); }
-      catch { state.accessToken=""; state.refreshToken=""; state.csrfToken=""; state.user=null; disconnect(); }
+      try {
+        const refreshed=await refreshAccessToken();
+        if(!refreshed)throw new Error("Refresh token expired or was revoked.");
+        return await request(path,options,true);
+      } catch {
+        state.accessToken=""; state.refreshToken=""; state.csrfToken=""; state.user=null;
+        disconnect();
+        throw new Error("Your session expired. Please sign in again.");
+      }
     }
     const text = await res.text(); let body={}; try { body=text ? JSON.parse(text) : {}; } catch { body={message:text}; }
     if (!res.ok) throw new Error(body.message || body.error?.message || body.error || ("Request failed ("+res.status+")"));
